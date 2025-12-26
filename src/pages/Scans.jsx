@@ -3,12 +3,14 @@ import { supabase } from '../lib/supabase';
 import { Link } from 'react-router-dom';
 import { 
   Activity, Zap, Eye, ChevronLeft, 
-  Stethoscope, LayoutGrid, HeartPulse, Brain
+  LayoutGrid, HeartPulse
 } from 'lucide-react';
 
 const Scans = () => {
   const [scansList, setScansList] = useState([]);
   const [equipmentsList, setEquipmentsList] = useState([]);
+  // State specifically for the Endoscopy table
+  const [endoscopyList, setEndoscopyList] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [structuredScans, setStructuredScans] = useState([]);
 
@@ -17,12 +19,11 @@ const Scans = () => {
       try {
         setLoading(true);
 
-        // 1. Fetch All Scans
+        // 1. Fetch Main Scans Categories
         const { data: scansData, error: scansError } = await supabase
           .from('scans')
           .select('*')
           .order('id', { ascending: true });
-        
         if (scansError) throw scansError;
         setScansList(scansData || []);
 
@@ -31,9 +32,16 @@ const Scans = () => {
           .from('equipments')
           .select('*')
           .order('id', { ascending: true });
-
         if (equipError) throw equipError;
         setEquipmentsList(equipmentsData || []);
+
+        // 3. Fetch from the specific "Gastrointestinal-and-Liver-Endoscopy" table
+        const { data: endoscopyData, error: endoError } = await supabase
+            .from('gastrointestinal_and_liver_endoscopy')
+            .select('*');
+        
+        if (endoError) throw endoError;
+        setEndoscopyList(endoscopyData || []);
 
       } catch (error) {
         console.error('Error fetching data:', error.message);
@@ -45,7 +53,7 @@ const Scans = () => {
     fetchData();
   }, []);
 
-  // --- LOGIC: Group Scans based on your specific requirements ---
+  // --- LOGIC: Group Scans ---
   useEffect(() => {
     if (scansList.length > 0) {
       
@@ -59,22 +67,23 @@ const Scans = () => {
           id: getID("الأشعة المقطعية") || getID("المقطعية"), 
           icon: <LayoutGrid size={40} />,
           bg: "bg-blue-100 text-blue-600",
-          image: "https://jwmcjqsdsibflzsaqeek.supabase.co/storage/v1/object/public/equipment-images/ct-scan.jpg.png"
+          image: "https://images.unsplash.com/photo-1516549655169-df83a092dd14?auto=format&fit=crop&q=80&w=600"
         },
         {
+          // UPDATED: Fetches children from the specific 'endoscopyList' state
           title: "مناظير الجهاز الهضمي والكبد",
-          type: "single",
-          id: getID("مناظير"),
+          type: "parent",
           icon: <Eye size={40} />,
           bg: "bg-orange-100 text-orange-600",
-          image: "https://jwmcjqsdsibflzsaqeek.supabase.co/storage/v1/object/public/equipment-images/Gastrointestinal-and-Liver-Endoscopy.png"
+          image: "https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&q=80&w=600",
+          children: endoscopyList.map(item => ({ name: item.name, id: null })) 
         },
         {
           title: "الأشعة السينية الرقمية",
           type: "parent",
           icon: <Zap size={40} />,
           bg: "bg-indigo-100 text-indigo-600",
-          image: "https://jwmcjqsdsibflzsaqeek.supabase.co/storage/v1/object/public/equipment-images/xray.jpg.png",
+          image: "https://images.unsplash.com/photo-1530497610245-94d3c16cda28?auto=format&fit=crop&q=80&w=600",
           children: [
             "الاشعة السينية للعظام",
             "الاشعة السينية للصدر",
@@ -90,7 +99,7 @@ const Scans = () => {
           type: "parent",
           icon: <Activity size={40} />,
           bg: "bg-teal-100 text-teal-600",
-          image: "https://jwmcjqsdsibflzsaqeek.supabase.co/storage/v1/object/public/equipment-images/ultrasound.jpg.png",
+          image: "https://plus.unsplash.com/premium_photo-1673953509975-576678fa6710?auto=format&fit=crop&q=80&w=600",
           children: [
             "الموجات فوق الصوتية للبطن",
             "تصوير البروستات بالموجات فوق الصوتية",
@@ -105,7 +114,7 @@ const Scans = () => {
           type: "parent",
           icon: <HeartPulse size={40} />,
           bg: "bg-pink-100 text-pink-600",
-          image: "https://jwmcjqsdsibflzsaqeek.supabase.co/storage/v1/object/public/equipment-images/mammogram.jpg.png",
+          image: "https://images.unsplash.com/photo-1579154204601-01588f351e67?auto=format&fit=crop&q=80&w=600",
           children: [
             "أشعة الماموجرام",
             "تخطيط كهربية القلب (ECG)",
@@ -116,7 +125,7 @@ const Scans = () => {
 
       setStructuredScans(groups);
     }
-  }, [scansList]);
+  }, [scansList, endoscopyList]); // Added endoscopyList to dependency array
 
   return (
     <div className="font-sans text-gray-800 bg-white" dir="rtl">
@@ -126,7 +135,7 @@ const Scans = () => {
         <div className="container mx-auto px-6">
           <div className="flex flex-col lg:flex-row items-center gap-12">
             
-            {/* Text Side (Right) */}
+            {/* Text Side */}
             <div className="lg:w-1/2 text-center lg:text-right z-10 order-2 lg:order-1">
                <span className="inline-block py-1.5 px-4 rounded-full bg-teal-100 text-teal-700 text-sm font-bold mb-6 shadow-sm">
                   <i className="fas fa-hospital-alt ml-2"></i>
@@ -149,7 +158,7 @@ const Scans = () => {
                </div>
             </div>
 
-            {/* Image Side (Left) */}
+            {/* Image Side */}
             <div className="lg:w-1/2 relative order-1 lg:order-2">
                <div className="relative rounded-3xl overflow-hidden shadow-2xl border-4 border-white group">
                   <img
@@ -182,7 +191,7 @@ const Scans = () => {
         </div>
       </section>
 
-      {/* --- SERVICES / SCANS SECTION (REFACTORED) --- */}
+      {/* --- SERVICES / SCANS SECTION --- */}
       <section className="py-16 bg-white">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
@@ -196,12 +205,11 @@ const Scans = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {structuredScans.map((group, index) => {
                 
-                // CASE 1: Single Scan (No Children) -> Bigger Image
+                // CASE 1: Single Scan
                 if (group.type === 'single') {
                   return (
                     <Link to={group.id ? `/scans/${group.id}` : '#'} key={index} className="block group h-full">
                       <div className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 flex flex-col h-full">
-                        {/* Image Header: Increased height (h-64) */}
                         <div className="h-64 overflow-hidden relative">
                            <img src={group.image} alt={group.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                            <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors"></div>
@@ -209,7 +217,6 @@ const Scans = () => {
                               {group.icon}
                            </div>
                         </div>
-                        {/* Body */}
                         <div className="p-6 flex flex-col flex-grow items-center justify-center text-center">
                            <h3 className="text-xl font-bold text-gray-800 mb-2 group-hover:text-teal-600 transition-colors">
                              {group.title}
@@ -221,10 +228,9 @@ const Scans = () => {
                   );
                 }
 
-                // CASE 2: Parent Category (Has Children) -> Scrollable List
+                // CASE 2: Parent Category
                 return (
                   <div key={index} className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 flex flex-col h-full group">
-                     {/* Image Header: Increased height (h-56) */}
                      <div className="h-56 overflow-hidden relative">
                         <img src={group.image} alt={group.title} className="w-full h-full object-cover" />
                         <div className="absolute inset-0 bg-gradient-to-t from-blue-900/80 to-transparent"></div>
@@ -236,20 +242,25 @@ const Scans = () => {
                         </div>
                      </div>
 
-                     {/* Children List: Fixed height with Scroll */}
                      <div className="p-4 bg-gray-50/50 border-t border-gray-100">
                         {group.children.length > 0 ? (
                           <div className="max-h-44 overflow-y-auto pr-1 custom-scrollbar">
                             <ul className="space-y-2">
                                 {group.children.map((child, cIdx) => (
                                 <li key={cIdx}>
-                                    <Link 
-                                    to={`/scans/${child.id}`}
-                                    className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100 hover:border-teal-200 hover:shadow-sm hover:translate-x-1 transition-all duration-200 cursor-pointer"
-                                    >
-                                    <span className="text-sm font-bold text-gray-700">{child.name}</span>
-                                    <ChevronLeft size={16} className="text-teal-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                    </Link>
+                                    {child.id ? (
+                                        <Link 
+                                        to={`/scans/${child.id}`}
+                                        className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100 hover:border-teal-200 hover:shadow-sm hover:translate-x-1 transition-all duration-200 cursor-pointer"
+                                        >
+                                        <span className="text-sm font-bold text-gray-700">{child.name}</span>
+                                        <ChevronLeft size={16} className="text-teal-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        </Link>
+                                    ) : (
+                                        <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100">
+                                            <span className="text-sm font-bold text-gray-700">{child.name}</span>
+                                        </div>
+                                    )}
                                 </li>
                                 ))}
                             </ul>
