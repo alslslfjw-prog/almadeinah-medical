@@ -16,7 +16,7 @@ export default function Navbar() {
     { name: 'الرئيسية', path: '/' },
     { name: 'عن المركز', path: '/about' },
     { name: 'الأطباء', path: '/doctors' },
-    { name: 'المدينة سكان', path: '/scans' },
+    { name: 'الأشعة التشخيصية', path: '/scans' },
     { name: 'العيادات', path: '/clinics' },
     { name: 'الفحوصات', path: '/examinations' },
   ];

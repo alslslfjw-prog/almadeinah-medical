@@ -1,25 +1,30 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Link } from 'react-router-dom';
+import { 
+  Activity, Zap, Eye, ChevronLeft, 
+  Stethoscope, LayoutGrid, HeartPulse, Brain
+} from 'lucide-react';
 
 const Scans = () => {
   const [scansList, setScansList] = useState([]);
   const [equipmentsList, setEquipmentsList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [structuredScans, setStructuredScans] = useState([]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
 
-        // 1. Fetch Scans
+        // 1. Fetch All Scans
         const { data: scansData, error: scansError } = await supabase
           .from('scans')
           .select('*')
           .order('id', { ascending: true });
         
         if (scansError) throw scansError;
-        if (scansData) setScansList(scansData);
+        setScansList(scansData || []);
 
         // 2. Fetch Equipments
         const { data: equipmentsData, error: equipError } = await supabase
@@ -28,7 +33,7 @@ const Scans = () => {
           .order('id', { ascending: true });
 
         if (equipError) throw equipError;
-        if (equipmentsData) setEquipmentsList(equipmentsData);
+        setEquipmentsList(equipmentsData || []);
 
       } catch (error) {
         console.error('Error fetching data:', error.message);
@@ -39,6 +44,79 @@ const Scans = () => {
 
     fetchData();
   }, []);
+
+  // --- LOGIC: Group Scans based on your specific requirements ---
+  useEffect(() => {
+    if (scansList.length > 0) {
+      
+      const findScan = (name) => scansList.find(s => s.name && s.name.includes(name));
+      const getID = (name) => findScan(name)?.id;
+
+      const groups = [
+        {
+          title: "الأشعة المقطعية",
+          type: "single",
+          id: getID("الأشعة المقطعية") || getID("المقطعية"), 
+          icon: <LayoutGrid size={40} />,
+          bg: "bg-blue-100 text-blue-600",
+          image: "https://jwmcjqsdsibflzsaqeek.supabase.co/storage/v1/object/public/equipment-images/ct-scan.jpg.png"
+        },
+        {
+          title: "مناظير الجهاز الهضمي والكبد",
+          type: "single",
+          id: getID("مناظير"),
+          icon: <Eye size={40} />,
+          bg: "bg-orange-100 text-orange-600",
+          image: "https://jwmcjqsdsibflzsaqeek.supabase.co/storage/v1/object/public/equipment-images/Gastrointestinal-and-Liver-Endoscopy.png"
+        },
+        {
+          title: "الأشعة السينية الرقمية",
+          type: "parent",
+          icon: <Zap size={40} />,
+          bg: "bg-indigo-100 text-indigo-600",
+          image: "https://jwmcjqsdsibflzsaqeek.supabase.co/storage/v1/object/public/equipment-images/xray.jpg.png",
+          children: [
+            "الاشعة السينية للعظام",
+            "الاشعة السينية للصدر",
+            "الاشعة السينية للبطن",
+            "فحص الكلى بالصبغة I.V.U",
+            "فحص القولون بصبغة الباريوم",
+            "اشعة الصبغة للرحم وقنوات فالوب",
+            "فحص البلعوم والمعده بصبغة الباريوم"
+          ].map(name => ({ name, id: getID(name) })).filter(c => c.id)
+        },
+        {
+          title: "التصوير بالموجات فوق الصوتية",
+          type: "parent",
+          icon: <Activity size={40} />,
+          bg: "bg-teal-100 text-teal-600",
+          image: "https://jwmcjqsdsibflzsaqeek.supabase.co/storage/v1/object/public/equipment-images/ultrasound.jpg.png",
+          children: [
+            "الموجات فوق الصوتية للبطن",
+            "تصوير البروستات بالموجات فوق الصوتية",
+            "تصوير الغدة الدرقية بالموجات فوق الصوتية",
+            "تصوير الخصية بالموجات فوق الصوتية",
+            "تصوير الاوعية الدمويه - الدوبلر",
+            "إيكو القلب (Echo)"
+          ].map(name => ({ name, id: getID(name) })).filter(c => c.id)
+        },
+        {
+          title: "أشعة الماموجرام وتخطيطات أخرى",
+          type: "parent",
+          icon: <HeartPulse size={40} />,
+          bg: "bg-pink-100 text-pink-600",
+          image: "https://jwmcjqsdsibflzsaqeek.supabase.co/storage/v1/object/public/equipment-images/mammogram.jpg.png",
+          children: [
+            "أشعة الماموجرام",
+            "تخطيط كهربية القلب (ECG)",
+            "تخطيط كهربية الدماغ (EEG)"
+          ].map(name => ({ name, id: getID(name) || getID(name.split(' ')[0]) })).filter(c => c.id)
+        }
+      ];
+
+      setStructuredScans(groups);
+    }
+  }, [scansList]);
 
   return (
     <div className="font-sans text-gray-800 bg-white" dir="rtl">
@@ -71,39 +149,32 @@ const Scans = () => {
                </div>
             </div>
 
-            {/* Image Side (Left) - CT Scan Image */}
+            {/* Image Side (Left) */}
             <div className="lg:w-1/2 relative order-1 lg:order-2">
                <div className="relative rounded-3xl overflow-hidden shadow-2xl border-4 border-white group">
-                  {/* CT Scan Image */}
                   <img
                     src="https://jwmcjqsdsibflzsaqeek.supabase.co/storage/v1/object/public/equipment-images/ct-scan.jpg.png"
                     alt="CT Scan Machine"
                     className="w-full h-[400px] md:h-[500px] object-cover transition-transform duration-700 group-hover:scale-105"
                   />
-                  
-                  {/* Overlay Gradient */}
                   <div className="absolute inset-0 bg-gradient-to-t from-blue-900/60 to-transparent"></div>
-
-                  {/* Floating Stats Bar */}
                   <div className="absolute bottom-6 left-6 right-6 bg-white/95 backdrop-blur-md p-6 rounded-2xl shadow-lg flex justify-between items-center text-center border border-gray-100">
-                     <div className="flex-1">
-                        <span className="block text-2xl md:text-3xl font-bold text-blue-900">+1400</span>
-                        <span className="text-xs text-gray-500 font-bold">مريض سعيد</span>
-                     </div>
-                     <div className="w-px h-10 bg-gray-200"></div>
-                     <div className="flex-1">
-                        <span className="block text-2xl md:text-3xl font-bold text-teal-500">+5</span>
-                        <span className="text-xs text-gray-500 font-bold">طبيب متخصص</span>
-                     </div>
-                     <div className="w-px h-10 bg-gray-200"></div>
-                     <div className="flex-1">
-                        <span className="block text-2xl md:text-3xl font-bold text-blue-900">5</span>
-                        <span className="text-xs text-gray-500 font-bold">غرفة مجهزة</span>
-                     </div>
+                      <div className="flex-1">
+                         <span className="block text-2xl md:text-3xl font-bold text-blue-900">+1400</span>
+                         <span className="text-xs text-gray-500 font-bold">مريض سعيد</span>
+                      </div>
+                      <div className="w-px h-10 bg-gray-200"></div>
+                      <div className="flex-1">
+                         <span className="block text-2xl md:text-3xl font-bold text-teal-500">+5</span>
+                         <span className="text-xs text-gray-500 font-bold">طبيب متخصص</span>
+                      </div>
+                      <div className="w-px h-10 bg-gray-200"></div>
+                      <div className="flex-1">
+                         <span className="block text-2xl md:text-3xl font-bold text-blue-900">5</span>
+                         <span className="text-xs text-gray-500 font-bold">غرفة مجهزة</span>
+                      </div>
                   </div>
                </div>
-               
-               {/* Decorative Background Blob */}
                <div className="absolute -z-10 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-teal-100/50 rounded-full blur-3xl opacity-50"></div>
             </div>
 
@@ -111,7 +182,7 @@ const Scans = () => {
         </div>
       </section>
 
-      {/* --- SERVICES / SCANS SECTION --- */}
+      {/* --- SERVICES / SCANS SECTION (REFACTORED) --- */}
       <section className="py-16 bg-white">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
@@ -122,20 +193,77 @@ const Scans = () => {
           {loading ? (
             <div className="text-center py-10">جارٍ تحميل الخدمات...</div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              {scansList.map((scan) => (
-                <Link to={`/scans/${scan.id}`} key={scan.id} className="block">
-                    <div className="flex flex-col items-center justify-center p-8 bg-blue-50 rounded-2xl hover:bg-blue-100 hover:shadow-md transition-all duration-300 cursor-pointer group h-full">
-                    <div className="w-16 h-16 bg-blue-600 text-white rounded-xl flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition-transform">
-                        <i className={scan.icon_class || "fa-solid fa-heart-pulse"}></i>
-                    </div>
-                    <h3 className="font-bold text-lg text-blue-900 text-center">{scan.name}</h3>
-                    <span className="text-xs text-teal-600 mt-2 opacity-0 group-hover:opacity-100 transition-opacity font-bold">
-                        عرض التفاصيل &larr;
-                    </span>
-                    </div>
-                </Link>
-              ))}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {structuredScans.map((group, index) => {
+                
+                // CASE 1: Single Scan (No Children) -> Bigger Image
+                if (group.type === 'single') {
+                  return (
+                    <Link to={group.id ? `/scans/${group.id}` : '#'} key={index} className="block group h-full">
+                      <div className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 flex flex-col h-full">
+                        {/* Image Header: Increased height (h-64) */}
+                        <div className="h-64 overflow-hidden relative">
+                           <img src={group.image} alt={group.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                           <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors"></div>
+                           <div className="absolute top-4 right-4 bg-white/90 backdrop-blur rounded-xl p-2 shadow-sm">
+                              {group.icon}
+                           </div>
+                        </div>
+                        {/* Body */}
+                        <div className="p-6 flex flex-col flex-grow items-center justify-center text-center">
+                           <h3 className="text-xl font-bold text-gray-800 mb-2 group-hover:text-teal-600 transition-colors">
+                             {group.title}
+                           </h3>
+                           <span className="text-sm text-gray-400">اضغط لعرض التفاصيل</span>
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                }
+
+                // CASE 2: Parent Category (Has Children) -> Scrollable List
+                return (
+                  <div key={index} className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 flex flex-col h-full group">
+                     {/* Image Header: Increased height (h-56) */}
+                     <div className="h-56 overflow-hidden relative">
+                        <img src={group.image} alt={group.title} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-blue-900/80 to-transparent"></div>
+                        <div className="absolute bottom-4 right-4 text-white">
+                           <h3 className="text-xl font-bold">{group.title}</h3>
+                        </div>
+                        <div className={`absolute top-4 left-4 p-2 rounded-lg ${group.bg}`}>
+                           {group.icon}
+                        </div>
+                     </div>
+
+                     {/* Children List: Fixed height with Scroll */}
+                     <div className="p-4 bg-gray-50/50 border-t border-gray-100">
+                        {group.children.length > 0 ? (
+                          <div className="max-h-44 overflow-y-auto pr-1 custom-scrollbar">
+                            <ul className="space-y-2">
+                                {group.children.map((child, cIdx) => (
+                                <li key={cIdx}>
+                                    <Link 
+                                    to={`/scans/${child.id}`}
+                                    className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100 hover:border-teal-200 hover:shadow-sm hover:translate-x-1 transition-all duration-200 cursor-pointer"
+                                    >
+                                    <span className="text-sm font-bold text-gray-700">{child.name}</span>
+                                    <ChevronLeft size={16} className="text-teal-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    </Link>
+                                </li>
+                                ))}
+                            </ul>
+                          </div>
+                        ) : (
+                          <div className="text-center py-4 text-gray-400 text-sm">
+                            جاري إضافة الخدمات الفرعية...
+                          </div>
+                        )}
+                     </div>
+                  </div>
+                );
+
+              })}
             </div>
           )}
         </div>
@@ -163,7 +291,6 @@ const Scans = () => {
                       alt={item.name} 
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
                     />
-                    {/* Badge */}
                     {item.badge && (
                       <span className="absolute top-4 right-4 bg-teal-500/90 backdrop-blur-sm text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm tracking-wider uppercase">
                         {item.badge}
@@ -181,7 +308,6 @@ const Scans = () => {
                     </div>
                     
                     <div className="mt-auto flex justify-end">
-                        {/* --- CHANGED: Using Link instead of Button here --- */}
                         <Link 
                             to={`/equipments/${item.id}`} 
                             className="bg-teal-500 hover:bg-teal-600 text-white text-sm font-bold py-2 px-6 rounded-lg transition-colors flex items-center gap-2 shadow-teal-200 shadow-lg"
