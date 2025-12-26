@@ -67,7 +67,7 @@ const Scans = () => {
           id: getID("الأشعة المقطعية") || getID("المقطعية"), 
           icon: <LayoutGrid size={40} />,
           bg: "bg-blue-100 text-blue-600",
-          image: "https://images.unsplash.com/photo-1516549655169-df83a092dd14?auto=format&fit=crop&q=80&w=600"
+          image: "https://jwmcjqsdsibflzsaqeek.supabase.co/storage/v1/object/public/equipment-images/ct-scan.jpg.png"
         },
         {
           // UPDATED: Fetches children from the specific 'endoscopyList' state
@@ -75,7 +75,7 @@ const Scans = () => {
           type: "parent",
           icon: <Eye size={40} />,
           bg: "bg-orange-100 text-orange-600",
-          image: "https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&q=80&w=600",
+          image: "https://jwmcjqsdsibflzsaqeek.supabase.co/storage/v1/object/public/equipment-images/Gastrointestinal-and-Liver-Endoscopy.png",
           children: endoscopyList.map(item => ({ name: item.name, id: null })) 
         },
         {
@@ -83,7 +83,7 @@ const Scans = () => {
           type: "parent",
           icon: <Zap size={40} />,
           bg: "bg-indigo-100 text-indigo-600",
-          image: "https://images.unsplash.com/photo-1530497610245-94d3c16cda28?auto=format&fit=crop&q=80&w=600",
+          image: "https://jwmcjqsdsibflzsaqeek.supabase.co/storage/v1/object/public/equipment-images/xray.jpg.png",
           children: [
             "الاشعة السينية للعظام",
             "الاشعة السينية للصدر",
@@ -99,7 +99,7 @@ const Scans = () => {
           type: "parent",
           icon: <Activity size={40} />,
           bg: "bg-teal-100 text-teal-600",
-          image: "https://plus.unsplash.com/premium_photo-1673953509975-576678fa6710?auto=format&fit=crop&q=80&w=600",
+          image: "https://jwmcjqsdsibflzsaqeek.supabase.co/storage/v1/object/public/equipment-images/ultrasound.jpg.png",
           children: [
             "الموجات فوق الصوتية للبطن",
             "تصوير البروستات بالموجات فوق الصوتية",
@@ -114,7 +114,7 @@ const Scans = () => {
           type: "parent",
           icon: <HeartPulse size={40} />,
           bg: "bg-pink-100 text-pink-600",
-          image: "https://images.unsplash.com/photo-1579154204601-01588f351e67?auto=format&fit=crop&q=80&w=600",
+          image: "https://jwmcjqsdsibflzsaqeek.supabase.co/storage/v1/object/public/equipment-images/mammogram.jpg.png",
           children: [
             "أشعة الماموجرام",
             "تخطيط كهربية القلب (ECG)",
