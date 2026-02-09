@@ -100,10 +100,14 @@ export default function Packages() {
                     </div>
 
                     <div className="mt-auto">
-                        <button className="w-full bg-teal-600 hover:bg-teal-700 text-white py-3.5 rounded-xl font-bold transition shadow-lg shadow-teal-200 flex items-center justify-center gap-2">
+                        {/* تم التعديل هنا: استخدام Link بدلاً من button */}
+                        <Link 
+                            to={`/examinations/packages/${pkg.id}`}
+                            className="w-full bg-teal-600 hover:bg-teal-700 text-white py-3.5 rounded-xl font-bold transition shadow-lg shadow-teal-200 flex items-center justify-center gap-2"
+                        >
                             <Package size={18} />
-                            احجز الباقة الآن
-                        </button>
+                            تفاصيل الباقة
+                        </Link>
                     </div>
                 </div>
 
