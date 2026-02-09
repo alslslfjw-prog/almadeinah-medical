@@ -13,6 +13,7 @@ import EquipmentDetails from './pages/EquipmentDetails';
 import ClinicDetails from './pages/ClinicDetails'; // Import the new page
 import ExaminationDetails from './pages/ExaminationDetails'; // Import the new page
 import AllTests from './pages/AllTests';
+import Packages from './pages/Packages'; // Import the new page
 
 function App() {
   return (
@@ -50,6 +51,9 @@ function App() {
 
             {/* Equipment Details */}
               <Route path="/equipments/:id" element={<EquipmentDetails />} />
+            {/* Packages */}
+              <Route path="/examinations/packages" element={<Packages />} />
+            
 
              
             

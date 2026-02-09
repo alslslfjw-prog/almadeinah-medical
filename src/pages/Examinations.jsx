@@ -83,7 +83,7 @@ export default function Examinations() {
         <div className="container mx-auto px-6">
             <div className="grid md:grid-cols-2 gap-6 max-w-5xl mx-auto">
                 
-                {/* 1. All Tests Card (LINKED TO ALL TESTS PAGE) */}
+                {/* 1. All Tests Card */}
                 <Link to="/examinations/all-tests" className="group">
                     <div className="bg-white rounded-3xl p-8 shadow-xl border border-gray-100 flex items-center justify-between relative overflow-hidden transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:border-blue-200">
                         {/* Background Bloom */}
@@ -105,7 +105,7 @@ export default function Examinations() {
                     </div>
                 </Link>
 
-                {/* 2. Packages Card */}
+                {/* 2. Packages Card (LINKED HERE) */}
                 <Link to="/examinations/packages" className="group">
                     <div className="bg-white rounded-3xl p-8 shadow-xl border border-gray-100 flex items-center justify-between relative overflow-hidden transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:border-teal-200">
                         {/* Background Bloom */}
