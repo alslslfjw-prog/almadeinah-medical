@@ -19,6 +19,7 @@ export default function Navbar() {
     { name: 'الأشعة التشخيصية', path: '/scans' },
     { name: 'العيادات', path: '/clinics' },
     { name: 'الفحوصات', path: '/examinations' },
+    
   ];
 
   return (

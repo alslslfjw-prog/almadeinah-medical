@@ -12,6 +12,7 @@ import About from './pages/About';
 import EquipmentDetails from './pages/EquipmentDetails';
 import ClinicDetails from './pages/ClinicDetails'; // Import the new page
 import ExaminationDetails from './pages/ExaminationDetails'; // Import the new page
+import AllTests from './pages/AllTests';
 
 function App() {
   return (
@@ -42,13 +43,17 @@ function App() {
             <Route path="/examinations" element={<Examinations />} />
            {/* ✅ Add this new route */}
            <Route path="/examinations/:id" element={<ExaminationDetails />} />
-
+            {/* All Tests */}
+            <Route path="/examinations/all-tests" element={<AllTests />} />
             {/* About */}
             <Route path="/about" element={<About />} />
 
             {/* Equipment Details */}
               <Route path="/equipments/:id" element={<EquipmentDetails />} />
+
+             
             
+          
             
           </Routes>
         </main>

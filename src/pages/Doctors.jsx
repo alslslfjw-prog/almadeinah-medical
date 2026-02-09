@@ -187,12 +187,12 @@ const Doctors = () => {
                             onClick={() => handleCardClick(doctor.id)} 
                             className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition duration-300 border border-gray-100 group flex flex-col cursor-pointer"
                         >
-                            {/* Image Section */}
+                            {/* Image Section - RESTORED h-64, ADDED object-top */}
                             <div className="relative h-64 overflow-hidden bg-gray-100">
                                 <img 
                                     src={doctor.image_url} 
                                     alt={doctor.name} 
-                                    className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                                    className="w-full h-full object-cover object-top group-hover:scale-105 transition duration-500"
                                 />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition duration-300"></div>
                                 <div className={`absolute top-4 right-4 px-3 py-1 rounded-full text-xs font-bold text-white shadow-sm flex items-center gap-1
@@ -211,10 +211,10 @@ const Doctors = () => {
                                 
                                 <div className="mt-auto">
                                     <button 
-                                        onClick={(e) => handleBookingClick(e, doctor)} 
-                                        className="w-full bg-white text-teal-600 border border-teal-600 hover:bg-teal-600 hover:text-white py-2.5 rounded-xl text-sm font-bold transition duration-300 flex items-center justify-center gap-2"
-                                    >
-                                        احجز موعد
+                                            onClick={(e) => handleBookingClick(e, doctor)} 
+                                            className="w-full bg-white text-teal-600 border border-teal-600 hover:bg-teal-600 hover:text-white py-2.5 rounded-xl text-sm font-bold transition duration-300 flex items-center justify-center gap-2"
+                                        >
+                                            احجز موعد
                                     </button>
                                 </div>
                             </div>

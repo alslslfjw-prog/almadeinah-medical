@@ -58,7 +58,8 @@ export default function DoctorDetails() {
                     <img 
                         src={doctor.image_url} 
                         alt={doctor.name} 
-                        className="w-full h-full object-cover rounded-full"
+                        // Added 'object-top' to ensure the face is not cut off
+                        className="w-full h-full object-cover object-top rounded-full"
                     />
                 </div>
 

@@ -3,8 +3,41 @@ import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { 
   Calendar, Clock, ChevronDown, Phone, 
-  Stethoscope, User, Activity, Microscope, CheckCircle
+  Stethoscope, User, Activity, Microscope, CheckCircle, X
 } from 'lucide-react';
+
+// --- قائمة باقات الفحوصات الجديدة ---
+const LAB_PACKAGES = [
+  "الفحص العام",
+  "الفحص العام (رجال) بلس",
+  "الفحص العام (نساء) بلس",
+  "مقاومة الأنسولين",
+  "تحاليل ما قبل الزواج للنساء",
+  "تحاليل ما قبل الزواج للنساء بلس",
+  "النظام الغذائي",
+  "تحاليل هشاشة العظام",
+  "تحاليل الروماتيزم",
+  "تحاليل الغده الدرقيه",
+  "تحاليل الغده الدرقيه بلس",
+  "تحاليل فقر الدم",
+  "تحاليل فقر الدم بلس",
+  "تحاليل الجلد والشعر",
+  "تحاليل غياب الدورة الشهرية",
+  "وظائف الغده النخاميه",
+  "تحاليل تعدد الاكياس",
+  "تحاليل متابعة الحمل",
+  "تحاليل مخاطر الاصابه بالجلطات",
+  "تحاليل التسمم بالحديد",
+  "تحاليل التخطيط للحمل",
+  "تحاليل العقم للرجال+",
+  "تحاليل للنساء عمر اكبر من 45",
+  "تحاليل للرجال عمر اكبر من 45",
+  "تحاليل مرضى السكر",
+  "تحاليل مخاطر الامراض القلبية",
+  "تحاليل دلالات الأورام",
+  "تحاليل الأطفال",
+  "تحاليل الأيض الشامل"
+];
 
 export default function AppointmentWidget() {
   const navigate = useNavigate();
@@ -16,7 +49,13 @@ export default function AppointmentWidget() {
   const [allDoctors, setAllDoctors] = useState([]); 
   const [secondaryOptions, setSecondaryOptions] = useState([]); 
   
+  // للحقول العادية (عيادات، أطباء، سكان)
   const [selectedPrimary, setSelectedPrimary] = useState(''); 
+  
+  // -- NEW: حالة خاصة للفحوصات المتعددة --
+  const [labSelectionType, setLabSelectionType] = useState(null); // 'single' (individual tests) or 'package'
+  const [selectedLabItems, setSelectedLabItems] = useState([]); // Array to store multiple selections
+
   const [selectedDoctor, setSelectedDoctor] = useState(null); 
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
@@ -31,20 +70,10 @@ export default function AppointmentWidget() {
     { id: 'lab', label: 'الفحوصات', icon: <Microscope size={18} />, table: 'lab_tests_list', col: 'name' },
   ];
 
-  // Shift Periods (For Doctors/Clinics)
+  // Shift Periods (For Doctors/Clinics Only)
   const shiftPeriods = [
     { label: 'الفترة الصباحية (9:00 ص - 1:00 م)', id: 'morning' },
     { label: 'الفترة المسائية (4:00 م - 8:00 م)', id: 'evening' },
-  ];
-
-  // Specific Time Slots (For Scans/Labs) - Generated 30min intervals
-  const specificTimeSlots = [
-    "08:00 صباحاً", "08:30 صباحاً", "09:00 صباحاً", "09:30 صباحاً",
-    "10:00 صباحاً", "10:30 صباحاً", "11:00 صباحاً", "11:30 صباحاً",
-    "12:00 ظهراً", "12:30 ظهراً", "01:00 ظهراً", 
-    "04:00 عصراً", "04:30 عصراً", "05:00 عصراً", "05:30 عصراً",
-    "06:00 مساءً", "06:30 مساءً", "07:00 مساءً", "07:30 مساءً",
-    "08:00 مساءً", "08:30 مساءً", "09:00 مساءً"
   ];
 
   // Helper: Normalize Arabic Text
@@ -68,6 +97,11 @@ export default function AppointmentWidget() {
       setSelectedPrimary('');
       setSelectedDoctor(null);
       setSecondaryOptions([]);
+      
+      // Reset Lab State
+      setSelectedLabItems([]);
+      setLabSelectionType(null);
+
       setTime('');
       setError('');
 
@@ -122,31 +156,71 @@ export default function AppointmentWidget() {
     setTime('');
   };
 
-  // 4. Time Selection Logic
-  const renderTimeInput = () => {
-    let options = [];
-    let placeholder = "اختر الوقت...";
-
-    // Case A: Scans & Labs -> Use Specific Time Slots
-    if (activeTab === 'scans' || activeTab === 'lab') {
-      options = specificTimeSlots.map(t => ({ label: t, value: t }));
-    } 
-    // Case B: Doctors & Clinics -> Use Shift Periods
-    else {
-      placeholder = "اختر الفترة...";
-      let available = shiftPeriods;
-      
-      // Filter based on doctor's shift
-      if (selectedDoctor && selectedDoctor.shift) {
-          const shift = selectedDoctor.shift;
-          const showMorning = shift.includes('صباح');
-          const showEvening = shift.includes('عصر') || shift.includes('مساء') || shift.includes('م');
-          
-          if (showMorning && !showEvening) available = [shiftPeriods[0]];
-          if (!showMorning && showEvening) available = [shiftPeriods[1]];
-      }
-      options = available.map(p => ({ label: p.label, value: p.label }));
+  // --- Lab Selection Handlers ---
+  const handleAddSingleTest = (testName) => {
+    if (!testName) return;
+    if (labSelectionType === 'package') {
+        setLabSelectionType('single');
+        setSelectedLabItems([testName]);
+    } else {
+        setLabSelectionType('single');
+        if (!selectedLabItems.includes(testName)) {
+            setSelectedLabItems([...selectedLabItems, testName]);
+        }
     }
+  };
+
+  const handleAddPackage = (packageName) => {
+    if (!packageName) return;
+    if (labSelectionType === 'single') {
+        setLabSelectionType('package');
+        setSelectedLabItems([packageName]);
+    } else {
+        setLabSelectionType('package');
+        if (!selectedLabItems.includes(packageName)) {
+            setSelectedLabItems([...selectedLabItems, packageName]);
+        }
+    }
+  };
+
+  const removeLabItem = (itemToRemove) => {
+    const updated = selectedLabItems.filter(item => item !== itemToRemove);
+    setSelectedLabItems(updated);
+    if (updated.length === 0) setLabSelectionType(null);
+  };
+
+  // 4. Time Selection Logic (UPDATED)
+  const renderTimeInput = () => {
+    
+    // الحالة أ: الفحوصات والمدينة سكان -> وقت حر (Input Type Time)
+    if (activeTab === 'scans' || activeTab === 'lab') {
+        return (
+            <div className="relative">
+                <input 
+                    type="time"
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-200 text-gray-700 py-3.5 px-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition font-medium text-sm text-left ltr-input"
+                    style={{ direction: 'ltr' }} // Force LTR for time input alignment
+                />
+            </div>
+        );
+    }
+
+    // الحالة ب: الأطباء والعيادات -> فترات دوام (Dropdown)
+    let placeholder = "اختر الفترة...";
+    let available = shiftPeriods;
+    
+    if (selectedDoctor && selectedDoctor.shift) {
+        const shift = selectedDoctor.shift;
+        const showMorning = shift.includes('صباح');
+        const showEvening = shift.includes('عصر') || shift.includes('مساء') || shift.includes('م');
+        
+        if (showMorning && !showEvening) available = [shiftPeriods[0]];
+        if (!showMorning && showEvening) available = [shiftPeriods[1]];
+    }
+    
+    let options = available.map(p => ({ label: p.label, value: p.label }));
 
     return (
       <div className="relative">
@@ -163,16 +237,28 @@ export default function AppointmentWidget() {
             <option key={idx} value={opt.value}>{opt.label}</option>
           ))}
         </select>
+        <ChevronDown className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
       </div>
     );
   };
 
   // 5. Submit & Navigate
   const handleBookNow = () => {
-    if (!selectedPrimary) {
-      setError('يرجى اختيار ' + (activeTab === 'doctors' ? 'الطبيب' : 'العيادة/الخدمة'));
-      return;
+    let finalSelection = selectedPrimary;
+
+    if (activeTab === 'lab') {
+        if (selectedLabItems.length === 0) {
+            setError('يرجى اختيار فحص واحد على الأقل أو باقة');
+            return;
+        }
+        finalSelection = selectedLabItems.join('، ');
+    } else {
+        if (!selectedPrimary) {
+            setError('يرجى اختيار ' + (activeTab === 'doctors' ? 'الطبيب' : (activeTab === 'scans' ? 'نوع الأشعة' : 'العيادة')));
+            return;
+        }
     }
+
     if (activeTab === 'clinics' && !selectedDoctor && secondaryOptions.length > 0) {
        setError('يرجى اختيار الطبيب من القائمة');
        return;
@@ -188,10 +274,11 @@ export default function AppointmentWidget() {
 
     const bookingData = {
       type: activeTab,
-      primarySelection: selectedPrimary,
+      primarySelection: finalSelection,
       doctor: selectedDoctor,
       date,
-      time
+      time,
+      isPackage: labSelectionType === 'package'
     };
 
     navigate('/checkout', { state: bookingData });
@@ -221,37 +308,92 @@ export default function AppointmentWidget() {
         </div>
       </div>
 
-      {/* Form */}
+      {/* Form Grid */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
         
-        {/* 1. Primary Dropdown */}
-        <div className={`${activeTab === 'clinics' ? 'md:col-span-3' : 'md:col-span-4'}`}>
-          <label className="block text-gray-700 font-bold mb-2 text-sm">
-             {activeTab === 'doctors' ? 'اختر الطبيب' : 
-              activeTab === 'clinics' ? 'اختر العيادة' : 
-              activeTab === 'scans' ? 'اختر نوع الأشعة' : 'اختر الفحص'}
-          </label>
-          <div className="relative">
-            <select 
-              disabled={loading}
-              value={selectedPrimary}
-              onChange={(e) => {
-                  setSelectedPrimary(e.target.value);
-                  if (activeTab === 'doctors') handleDoctorChange(e.target.value);
-              }}
-              className="w-full bg-gray-50 border border-gray-200 text-gray-700 py-3.5 px-4 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white appearance-none transition cursor-pointer font-medium disabled:opacity-50 text-sm"
-            >
-              <option value="">{loading ? "جاري التحميل..." : "اختر من القائمة..."}</option>
-              {!loading && primaryOptions.map((item, index) => {
-                 const val = activeTab === 'doctors' ? item.name : item.name || item.title || item;
-                 return <option key={index} value={val}>{val}</option>
-              })}
-            </select>
-            <ChevronDown className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
-          </div>
-        </div>
+        {/* --- SECTION 1: SELECTION LOGIC --- */}
+        
+        {activeTab === 'lab' ? (
+            /* CASE A: Lab Tab - Split directly into grid (3 + 3 cols) */
+            <>
+                {/* 1. Individual Tests Dropdown */}
+                <div className="md:col-span-3">
+                    <label className={`block font-bold mb-2 text-sm ${labSelectionType === 'package' ? 'text-gray-300' : 'text-gray-700'}`}>
+                        الفحوصات الفردية
+                    </label>
+                    <div className="relative">
+                        <select 
+                            disabled={loading}
+                            value="" 
+                            onChange={(e) => handleAddSingleTest(e.target.value)}
+                            className={`w-full border py-3.5 px-4 pr-10 rounded-xl focus:outline-none appearance-none transition cursor-pointer font-medium text-sm
+                                ${labSelectionType === 'package' 
+                                    ? 'bg-gray-100 border-gray-100 text-gray-400' 
+                                    : 'bg-gray-50 border-gray-200 text-gray-700 focus:ring-2 focus:ring-teal-500 focus:bg-white'}
+                            `}
+                        >
+                            <option value="">اختر فحصاً لإضافته...</option>
+                            {!loading && primaryOptions.map((item, index) => (
+                                <option key={index} value={item.name}>{item.name}</option>
+                            ))}
+                        </select>
+                        <ChevronDown className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
+                    </div>
+                </div>
 
-        {/* 2. Secondary Dropdown (Doctors in Clinic) */}
+                {/* 2. Packages Dropdown */}
+                <div className="md:col-span-3">
+                    <label className={`block font-bold mb-2 text-sm ${labSelectionType === 'single' ? 'text-gray-300' : 'text-gray-700'}`}>
+                        باقات الفحوصات
+                    </label>
+                    <div className="relative">
+                        <select 
+                            value="" 
+                            onChange={(e) => handleAddPackage(e.target.value)}
+                            className={`w-full border py-3.5 px-4 pr-10 rounded-xl focus:outline-none appearance-none transition cursor-pointer font-medium text-sm
+                                ${labSelectionType === 'single' 
+                                    ? 'bg-gray-100 border-gray-100 text-gray-400' 
+                                    : 'bg-teal-50 border-teal-100 text-teal-800 focus:ring-2 focus:ring-teal-500 focus:bg-white'}
+                            `}
+                        >
+                            <option value="">اختر باقة لإضافتها...</option>
+                            {LAB_PACKAGES.map((pkg, index) => (
+                                <option key={index} value={pkg}>{pkg}</option>
+                            ))}
+                        </select>
+                        <ChevronDown className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
+                    </div>
+                </div>
+            </>
+        ) : (
+            /* CASE B: Standard Tabs (4 cols or 3 cols) */
+            <div className={`${activeTab === 'clinics' ? 'md:col-span-3' : 'md:col-span-4'}`}>
+                <label className="block text-gray-700 font-bold mb-2 text-sm">
+                    {activeTab === 'doctors' ? 'اختر الطبيب' : 
+                    activeTab === 'clinics' ? 'اختر العيادة' : 'اختر نوع الأشعة'}
+                </label>
+                <div className="relative">
+                    <select 
+                    disabled={loading}
+                    value={selectedPrimary}
+                    onChange={(e) => {
+                        setSelectedPrimary(e.target.value);
+                        if (activeTab === 'doctors') handleDoctorChange(e.target.value);
+                    }}
+                    className="w-full bg-gray-50 border border-gray-200 text-gray-700 py-3.5 px-4 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white appearance-none transition cursor-pointer font-medium disabled:opacity-50 text-sm"
+                    >
+                    <option value="">{loading ? "جاري التحميل..." : "اختر من القائمة..."}</option>
+                    {!loading && primaryOptions.map((item, index) => {
+                        const val = activeTab === 'doctors' ? item.name : item.name || item.title || item;
+                        return <option key={index} value={val}>{val}</option>
+                    })}
+                    </select>
+                    <ChevronDown className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
+                </div>
+            </div>
+        )}
+
+        {/* --- SECTION 2: SECONDARY SELECTION (Only for Clinics) --- */}
         {activeTab === 'clinics' && (
             <div className="md:col-span-3">
             <label className="block text-gray-700 font-bold mb-2 text-sm">اختر الطبيب</label>
@@ -263,7 +405,7 @@ export default function AppointmentWidget() {
                 >
                 <option value="">
                     {!selectedPrimary ? "اختر العيادة أولاً" : 
-                     secondaryOptions.length === 0 ? "لا يوجد أطباء متاحين" : "اختر الطبيب..."}
+                    secondaryOptions.length === 0 ? "لا يوجد أطباء متاحين" : "اختر الطبيب..."}
                 </option>
                 {secondaryOptions.map((doc, index) => (
                     <option key={index} value={doc.name}>{doc.name}</option>
@@ -274,8 +416,9 @@ export default function AppointmentWidget() {
             </div>
         )}
 
-        {/* 3. Date Input */}
-        <div className={`${activeTab === 'clinics' ? 'md:col-span-2' : 'md:col-span-3'}`}>
+        {/* --- SECTION 3: DATE & TIME --- */}
+        {/* Date Input */}
+        <div className={`${activeTab === 'clinics' || activeTab === 'lab' ? 'md:col-span-2' : 'md:col-span-3'}`}>
           <label className="block text-gray-700 font-bold mb-2 text-sm">التاريخ</label>
           <div className="relative">
             <input 
@@ -288,13 +431,13 @@ export default function AppointmentWidget() {
           </div>
         </div>
 
-        {/* 4. Time Input (Dropdown) */}
-        <div className={`${activeTab === 'clinics' ? 'md:col-span-2' : 'md:col-span-3'}`}>
+        {/* Time Input */}
+        <div className={`${activeTab === 'clinics' || activeTab === 'lab' ? 'md:col-span-2' : 'md:col-span-3'}`}>
           <label className="block text-gray-700 font-bold mb-2 text-sm">الوقت</label>
           {renderTimeInput()}
         </div>
 
-        {/* 5. Submit Button */}
+        {/* --- SECTION 4: SUBMIT --- */}
         <div className="md:col-span-2">
           <button 
             onClick={handleBookNow}
@@ -304,6 +447,28 @@ export default function AppointmentWidget() {
             <span>احجز الآن</span>
           </button>
         </div>
+
+        {/* --- SECTION 5: LAB TAGS (Moved to separate row) --- */}
+        {activeTab === 'lab' && selectedLabItems.length > 0 && (
+            <div className="col-span-12 mt-2 pt-2 border-t border-gray-50">
+                <div className="flex flex-wrap gap-2">
+                    <span className="text-xs font-bold text-gray-400 ml-2 py-1">الخيارات المحددة:</span>
+                    {selectedLabItems.map((item, idx) => (
+                        <span key={idx} className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border animate-fadeIn
+                            ${labSelectionType === 'package' ? 'bg-teal-100 text-teal-700 border-teal-200' : 'bg-blue-50 text-blue-700 border-blue-200'}
+                        `}>
+                            {item}
+                            <button onClick={() => removeLabItem(item)} className="hover:bg-black/10 rounded-full p-0.5 transition">
+                                <X size={12} />
+                            </button>
+                        </span>
+                    ))}
+                    <button onClick={() => { setSelectedLabItems([]); setLabSelectionType(null); }} className="text-xs text-red-500 underline mr-2">
+                        مسح الكل
+                    </button>
+                </div>
+            </div>
+        )}
 
       </div>
 
