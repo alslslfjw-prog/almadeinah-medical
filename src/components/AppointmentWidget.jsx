@@ -6,7 +6,7 @@ import {
   Stethoscope, User, Activity, Microscope, CheckCircle, X
 } from 'lucide-react';
 
-// --- قائمة باقات الفحوصات الجديدة ---
+// --- قائمة باقات الفحوصات ---
 const LAB_PACKAGES = [
   "الفحص العام",
   "الفحص العام (رجال) بلس",
@@ -52,9 +52,9 @@ export default function AppointmentWidget() {
   // للحقول العادية (عيادات، أطباء، سكان)
   const [selectedPrimary, setSelectedPrimary] = useState(''); 
   
-  // -- NEW: حالة خاصة للفحوصات المتعددة --
-  const [labSelectionType, setLabSelectionType] = useState(null); // 'single' (individual tests) or 'package'
-  const [selectedLabItems, setSelectedLabItems] = useState([]); // Array to store multiple selections
+  // -- Lab State --
+  const [labSelectionType, setLabSelectionType] = useState(null); 
+  const [selectedLabItems, setSelectedLabItems] = useState([]); 
 
   const [selectedDoctor, setSelectedDoctor] = useState(null); 
   const [date, setDate] = useState('');
@@ -70,7 +70,7 @@ export default function AppointmentWidget() {
     { id: 'lab', label: 'الفحوصات', icon: <Microscope size={18} />, table: 'lab_tests_list', col: 'name' },
   ];
 
-  // Shift Periods (For Doctors/Clinics Only)
+  // Shift Periods
   const shiftPeriods = [
     { label: 'الفترة الصباحية (9:00 ص - 1:00 م)', id: 'morning' },
     { label: 'الفترة المسائية (4:00 م - 8:00 م)', id: 'evening' },
@@ -89,7 +89,7 @@ export default function AppointmentWidget() {
       .trim();
   };
 
-  // 1. Fetch Primary Data
+  // 1. Fetch Primary Data (تم التعديل لاستخدام priority)
   useEffect(() => {
     const fetchPrimaryData = async () => {
       setLoading(true);
@@ -97,33 +97,66 @@ export default function AppointmentWidget() {
       setSelectedPrimary('');
       setSelectedDoctor(null);
       setSecondaryOptions([]);
-      
-      // Reset Lab State
       setSelectedLabItems([]);
       setLabSelectionType(null);
-
       setTime('');
       setError('');
 
       try {
         const currentTab = tabs.find(t => t.id === activeTab);
         if (currentTab) {
-          const { data: mainData, error: mainError } = await supabase
-            .from(currentTab.table)
-            .select(activeTab === 'doctors' ? '*' : currentTab.col);
+          
+          try {
+            let query = supabase
+              .from(currentTab.table)
+              .select(activeTab === 'doctors' ? '*' : currentTab.col);
 
-          if (mainError) throw mainError;
-          setPrimaryOptions(mainData || []);
+            // --- منطق الترتيب المخصص ---
+            if (activeTab === 'clinics') {
+               // العيادات: نستخدم sort_order
+               query = query.order('sort_order', { ascending: true, nullsFirst: false })
+                            .order('clinic_number', { ascending: true });
+            } else if (activeTab === 'doctors') {
+               // الأطباء: نستخدم priority حسب طلبك
+               query = query.order('priority', { ascending: true, nullsFirst: false })
+                            .order('id', { ascending: true });
+            }
+            // ---------------------------
 
+            const { data: mainData, error: mainError } = await query;
+            
+            if (mainError) throw mainError;
+            setPrimaryOptions(mainData || []);
+
+          } catch (sortError) {
+            console.warn("Sorting failed, fallback to default...", sortError);
+            // Fallback
+            const { data: fallbackData } = await supabase
+              .from(currentTab.table)
+              .select(activeTab === 'doctors' ? '*' : currentTab.col);
+            setPrimaryOptions(fallbackData || []);
+          }
+
+          // جلب قائمة الأطباء الكاملة للفلترة (مع الترتيب أيضاً)
           if (activeTab === 'clinics') {
-            const { data: docsData, error: docsError } = await supabase
-              .from('doctors')
-              .select('*');
-            if (!docsError) setAllDoctors(docsData || []);
+            try {
+                const { data: docsData, error: docsError } = await supabase
+                  .from('doctors')
+                  .select('*')
+                  // هنا أيضاً نستخدم priority
+                  .order('priority', { ascending: true, nullsFirst: false })
+                  .order('id', { ascending: true });
+                
+                if (docsError) throw docsError;
+                setAllDoctors(docsData || []);
+            } catch (docSortError) {
+                const { data: docsFallback } = await supabase.from('doctors').select('*');
+                setAllDoctors(docsFallback || []);
+            }
           }
         }
       } catch (err) {
-        console.error("Error fetching data:", err);
+        console.error("Critical Error fetching data:", err);
       } finally {
         setLoading(false);
       }
@@ -189,10 +222,8 @@ export default function AppointmentWidget() {
     if (updated.length === 0) setLabSelectionType(null);
   };
 
-  // 4. Time Selection Logic (UPDATED)
+  // 4. Time Selection Logic
   const renderTimeInput = () => {
-    
-    // الحالة أ: الفحوصات والمدينة سكان -> وقت حر (Input Type Time)
     if (activeTab === 'scans' || activeTab === 'lab') {
         return (
             <div className="relative">
@@ -201,13 +232,12 @@ export default function AppointmentWidget() {
                     value={time}
                     onChange={(e) => setTime(e.target.value)}
                     className="w-full bg-gray-50 border border-gray-200 text-gray-700 py-3.5 px-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition font-medium text-sm text-left ltr-input"
-                    style={{ direction: 'ltr' }} // Force LTR for time input alignment
+                    style={{ direction: 'ltr' }}
                 />
             </div>
         );
     }
 
-    // الحالة ب: الأطباء والعيادات -> فترات دوام (Dropdown)
     let placeholder = "اختر الفترة...";
     let available = shiftPeriods;
     
@@ -312,11 +342,8 @@ export default function AppointmentWidget() {
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
         
         {/* --- SECTION 1: SELECTION LOGIC --- */}
-        
         {activeTab === 'lab' ? (
-            /* CASE A: Lab Tab - Split directly into grid (3 + 3 cols) */
             <>
-                {/* 1. Individual Tests Dropdown */}
                 <div className="md:col-span-3">
                     <label className={`block font-bold mb-2 text-sm ${labSelectionType === 'package' ? 'text-gray-300' : 'text-gray-700'}`}>
                         الفحوصات الفردية
@@ -341,7 +368,6 @@ export default function AppointmentWidget() {
                     </div>
                 </div>
 
-                {/* 2. Packages Dropdown */}
                 <div className="md:col-span-3">
                     <label className={`block font-bold mb-2 text-sm ${labSelectionType === 'single' ? 'text-gray-300' : 'text-gray-700'}`}>
                         باقات الفحوصات
@@ -366,7 +392,6 @@ export default function AppointmentWidget() {
                 </div>
             </>
         ) : (
-            /* CASE B: Standard Tabs (4 cols or 3 cols) */
             <div className={`${activeTab === 'clinics' ? 'md:col-span-3' : 'md:col-span-4'}`}>
                 <label className="block text-gray-700 font-bold mb-2 text-sm">
                     {activeTab === 'doctors' ? 'اختر الطبيب' : 
@@ -393,7 +418,7 @@ export default function AppointmentWidget() {
             </div>
         )}
 
-        {/* --- SECTION 2: SECONDARY SELECTION (Only for Clinics) --- */}
+        {/* --- SECTION 2: SECONDARY SELECTION --- */}
         {activeTab === 'clinics' && (
             <div className="md:col-span-3">
             <label className="block text-gray-700 font-bold mb-2 text-sm">اختر الطبيب</label>
@@ -417,7 +442,6 @@ export default function AppointmentWidget() {
         )}
 
         {/* --- SECTION 3: DATE & TIME --- */}
-        {/* Date Input */}
         <div className={`${activeTab === 'clinics' || activeTab === 'lab' ? 'md:col-span-2' : 'md:col-span-3'}`}>
           <label className="block text-gray-700 font-bold mb-2 text-sm">التاريخ</label>
           <div className="relative">
@@ -431,7 +455,6 @@ export default function AppointmentWidget() {
           </div>
         </div>
 
-        {/* Time Input */}
         <div className={`${activeTab === 'clinics' || activeTab === 'lab' ? 'md:col-span-2' : 'md:col-span-3'}`}>
           <label className="block text-gray-700 font-bold mb-2 text-sm">الوقت</label>
           {renderTimeInput()}
@@ -448,7 +471,7 @@ export default function AppointmentWidget() {
           </button>
         </div>
 
-        {/* --- SECTION 5: LAB TAGS (Moved to separate row) --- */}
+        {/* --- SECTION 5: LAB TAGS --- */}
         {activeTab === 'lab' && selectedLabItems.length > 0 && (
             <div className="col-span-12 mt-2 pt-2 border-t border-gray-50">
                 <div className="flex flex-wrap gap-2">
