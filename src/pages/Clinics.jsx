@@ -57,11 +57,13 @@ export default function Clinics() {
 
   useEffect(() => {
     async function fetchClinics() {
-      // Fetch sorted by clinic_number
+      // UPDATED: Fetch sorted by 'sort_order' first, then 'clinic_number'
       const { data } = await supabase
         .from('clinics')
         .select('*')
+        .order('sort_order', { ascending: true }) 
         .order('clinic_number', { ascending: true });
+        
       setClinics(data || []);
       setLoading(false);
     }
