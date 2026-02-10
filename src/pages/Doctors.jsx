@@ -39,7 +39,12 @@ const Doctors = () => {
     const fetchDoctors = async () => {
       try {
         setLoading(true);
-        const { data, error } = await supabase.from('doctors').select('*');
+        // Orders by sort_order (1, 2, 3...) first, then by id for the rest
+       const { data, error } = await supabase
+       .from('doctors')
+       .select('*')
+       .order('priority', { ascending: true })
+       .order('id', { ascending: true });
         if (error) throw error;
         setDoctors(data || []);
         setFilteredDoctors(data || []);

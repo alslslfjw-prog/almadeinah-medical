@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase'; 
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom'; // Added useNavigate
 import AppointmentWidget from '../components/AppointmentWidget';
-// Import Lucide Icons
 import { 
-  Building2, User, Activity, FlaskConical, // Services
-  Clock, Award, UserCheck, Microscope,     // Features
-  Twitter, Linkedin                        // Socials
+  Building2, User, Activity, FlaskConical, 
+  Clock, Award, UserCheck, Microscope,     
+  Twitter, Linkedin                         
 } from 'lucide-react';
 
 const Home = () => {
   const [doctors, setDoctors] = useState([]);
+  const navigate = useNavigate(); // Hook for navigation
 
   useEffect(() => {
     const fetchDoctors = async () => {
@@ -18,7 +18,11 @@ const Home = () => {
         const { data, error } = await supabase
           .from('doctors')
           .select('*')
-          .limit(4);
+          // FILTER: Only get doctors who have a number in home_page_order
+          .not('home_page_order', 'is', null)
+          // SORT: Order them 1, 2, 3...
+          .order('home_page_order', { ascending: true })
+          .limit(6); // Limit to 6
         
         if (error) throw error;
         if (data) setDoctors(data);
@@ -29,13 +33,17 @@ const Home = () => {
     fetchDoctors();
   }, []);
 
+  // Handler for clicking a card
+  const handleCardClick = (id) => {
+    navigate(`/doctors/${id}`);
+  };
+
   return (
     <div className="font-sans text-gray-800 bg-white" dir="rtl">
       
-      {/* 1. Hero Section */}
+      {/* 1. Hero Section - (No Changes) */}
       <header className="relative bg-gradient-to-r from-blue-50 to-white pt-8 pb-20 md:pt-12 md:pb-48 overflow-hidden">
         <div className="container mx-auto px-6 grid md:grid-cols-2 gap-12 items-center">
-          
           <div className="text-right z-10 pt-4 md:pt-8 order-2 md:order-1">
             <h1 className="text-3xl md:text-5xl lg:text-6xl font-black text-blue-900 leading-tight mb-4 md:mb-6">
               أفضل مركز طبي <br />
@@ -66,14 +74,14 @@ const Home = () => {
         <div className="absolute top-0 right-0 w-1/2 h-full bg-blue-100/30 rounded-bl-[10rem] z-0"></div>
       </header>
 
-      {/* 2. Booking Widget Container */}
+      {/* 2. Booking Widget Container - (No Changes) */}
       <div className="container mx-auto px-4 md:px-6 relative z-30 mt-0 md:-mt-32 mb-12 md:mb-0">
          <div className="bg-white rounded-3xl shadow-xl p-1 md:p-2 border border-gray-100 overflow-hidden">
              <AppointmentWidget />
          </div>
       </div>
 
-      {/* 3. About Us Section */}
+      {/* 3. About Us Section - (No Changes) */}
       <section className="py-16 md:py-24 bg-white">
         <div className="container mx-auto px-6 grid md:grid-cols-2 gap-12 md:gap-16 items-center">
           <div className="order-2 md:order-1">
@@ -116,27 +124,37 @@ const Home = () => {
         </div>
       </section>
 
-      {/* 4. Our Doctors Section */}
+      {/* 4. Our Doctors Section - (UPDATED with object-top) */}
       <section className="py-16 md:py-20 bg-gray-50">
         <div className="container mx-auto px-6 text-center">
-          <h2 className="text-2xl md:text-3xl font-bold text-blue-900 mb-2">أخصائيونا المتميزون</h2>
+          <h2 className="text-2xl md:text-3xl font-bold text-blue-900 mb-2">نخبة من كبار الأطباء الاستشاريين</h2>
           <p className="text-gray-500 mb-10 text-sm md:text-base">فريق من أفضل الأطباء في مختلف التخصصات</p>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+          {/* UPDATED GRID: grid-cols-2 on mobile, grid-cols-6 on large screens */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-6">
             {doctors.map((doctor) => (
-              <div key={doctor.id} className="group bg-white p-6 rounded-2xl shadow-sm hover:shadow-xl transition text-center border border-gray-100">
-                <div className="w-20 h-20 md:w-24 md:h-24 mx-auto rounded-full overflow-hidden border-2 border-teal-100 mb-4 group-hover:scale-110 transition duration-300">
+              <div 
+                key={doctor.id} 
+                onClick={() => handleCardClick(doctor.id)} // Added Click Handler
+                className="group bg-white p-4 rounded-2xl shadow-sm hover:shadow-xl transition text-center border border-gray-100 cursor-pointer flex flex-col items-center"
+              >
+                <div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden border-2 border-teal-100 mb-3 group-hover:scale-110 transition duration-300">
                   <img 
                     src={doctor.image_url || "https://via.placeholder.com/150"} 
                     alt={doctor.name} 
-                    className="w-full h-full object-cover" 
+                    // ADDED object-top HERE:
+                    className="w-full h-full object-cover object-top" 
                   />
                 </div>
-                <h3 className="text-lg font-bold text-gray-800">{doctor.name}</h3>
-                <p className="text-teal-600 text-sm mb-4">{doctor.specialty}</p>
-                <div className="flex justify-center gap-3 text-gray-400 opacity-0 group-hover:opacity-100 transition">
-                  <Twitter size={18} className="hover:text-blue-400 cursor-pointer" />
-                  <Linkedin size={18} className="hover:text-blue-700 cursor-pointer" />
+                {/* Name */}
+                <h3 className="text-sm md:text-base font-bold text-gray-800 line-clamp-1">{doctor.name}</h3>
+                {/* Specialty */}
+                <p className="text-teal-600 text-xs font-medium mb-2 line-clamp-1">{doctor.title || doctor.specialty}</p>
+                
+                {/* Icons (Optional - Hidden on small screens to save space in 6-grid) */}
+                <div className="flex justify-center gap-2 text-gray-400 opacity-0 group-hover:opacity-100 transition mt-auto">
+                  <Twitter size={14} className="hover:text-blue-400" />
+                  <Linkedin size={14} className="hover:text-blue-700" />
                 </div>
               </div>
             ))}
@@ -148,9 +166,10 @@ const Home = () => {
         </div>
       </section>
 
-      {/* 5. Medical Services Section */}
+      {/* 5. Medical Services Section - (No Changes) */}
       <section className="py-16 md:py-24 bg-gradient-to-br from-blue-900 to-teal-500 text-white relative overflow-hidden">
-        <div className="container mx-auto px-6 relative z-10 text-center">
+        {/* ... (Same as before) ... */}
+         <div className="container mx-auto px-6 relative z-10 text-center">
             <h2 className="text-2xl md:text-4xl font-bold mb-4">خدماتنا الطبية</h2>
             <p className="text-blue-100 mb-12 max-w-2xl mx-auto text-sm md:text-base">نقدم مجموعة شاملة من الخدمات الطبية المتخصصة</p>
             
@@ -190,9 +209,10 @@ const Home = () => {
         </div>
       </section>
 
-      {/* 6. Why Choose Us Section */}
+      {/* 6. Why Choose Us Section - (No Changes) */}
       <section className="py-16 md:py-24 bg-white text-center">
-        <div className="container mx-auto px-6">
+         {/* ... (Same as before) ... */}
+          <div className="container mx-auto px-6">
             <h2 className="text-2xl md:text-3xl font-bold text-blue-900 mb-12">لماذا تختار مركزنا؟</h2>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 md:gap-12">
                 <div className="flex flex-col items-center">
@@ -227,7 +247,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* 7. CTA */}
+      {/* 7. CTA - (No Changes) */}
       <section className="py-16 md:py-20 bg-gradient-to-r from-teal-500 to-blue-600 text-white text-center relative overflow-hidden">
         <div className="container mx-auto px-6 relative z-10">
           <h2 className="text-2xl md:text-5xl font-black mb-6">ابدأ رحلتك الصحية الآن</h2>
