@@ -6,40 +6,13 @@ import {
   Stethoscope, User, Activity, Microscope, CheckCircle, X
 } from 'lucide-react';
 
-// --- قائمة باقات الفحوصات ---
+// ... (Keep the LAB_PACKAGES array exactly as it was) ...
 const LAB_PACKAGES = [
-  "الفحص العام",
-  "الفحص العام (رجال) بلس",
-  "الفحص العام (نساء) بلس",
-  "مقاومة الأنسولين",
-  "تحاليل ما قبل الزواج للنساء",
-  "تحاليل ما قبل الزواج للنساء بلس",
-  "النظام الغذائي",
-  "تحاليل هشاشة العظام",
-  "تحاليل الروماتيزم",
-  "تحاليل الغده الدرقيه",
-  "تحاليل الغده الدرقيه بلس",
-  "تحاليل فقر الدم",
-  "تحاليل فقر الدم بلس",
-  "تحاليل الجلد والشعر",
-  "تحاليل غياب الدورة الشهرية",
-  "وظائف الغده النخاميه",
-  "تحاليل تعدد الاكياس",
-  "تحاليل متابعة الحمل",
-  "تحاليل مخاطر الاصابه بالجلطات",
-  "تحاليل التسمم بالحديد",
-  "تحاليل التخطيط للحمل",
-  "تحاليل العقم للرجال+",
-  "تحاليل للنساء عمر اكبر من 45",
-  "تحاليل للرجال عمر اكبر من 45",
-  "تحاليل مرضى السكر",
-  "تحاليل مخاطر الامراض القلبية",
-  "تحاليل دلالات الأورام",
-  "تحاليل الأطفال",
-  "تحاليل الأيض الشامل"
+  "الفحص العام", "الفحص العام (رجال) بلس", "الفحص العام (نساء) بلس", "مقاومة الأنسولين", "تحاليل ما قبل الزواج للنساء", "تحاليل ما قبل الزواج للنساء بلس", "النظام الغذائي", "تحاليل هشاشة العظام", "تحاليل الروماتيزم", "تحاليل الغده الدرقيه", "تحاليل الغده الدرقيه بلس", "تحاليل فقر الدم", "تحاليل فقر الدم بلس", "تحاليل الجلد والشعر", "تحاليل غياب الدورة الشهرية", "وظائف الغده النخاميه", "تحاليل تعدد الاكياس", "تحاليل متابعة الحمل", "تحاليل مخاطر الاصابه بالجلطات", "تحاليل التسمم بالحديد", "تحاليل التخطيط للحمل", "تحاليل العقم للرجال+", "تحاليل للنساء عمر اكبر من 45", "تحاليل للرجال عمر اكبر من 45", "تحاليل مرضى السكر", "تحاليل مخاطر الامراض القلبية", "تحاليل دلالات الأورام", "تحاليل الأطفال", "تحاليل الأيض الشامل"
 ];
 
-export default function AppointmentWidget() {
+// --- ACCEPT PROPS HERE ---
+export default function AppointmentWidget({ preSelectedDoctor = null }) {
   const navigate = useNavigate();
   
   // -- State Management --
@@ -49,10 +22,8 @@ export default function AppointmentWidget() {
   const [allDoctors, setAllDoctors] = useState([]); 
   const [secondaryOptions, setSecondaryOptions] = useState([]); 
   
-  // للحقول العادية (عيادات، أطباء، سكان)
   const [selectedPrimary, setSelectedPrimary] = useState(''); 
   
-  // -- Lab State --
   const [labSelectionType, setLabSelectionType] = useState(null); 
   const [selectedLabItems, setSelectedLabItems] = useState([]); 
 
@@ -70,36 +41,43 @@ export default function AppointmentWidget() {
     { id: 'lab', label: 'الفحوصات', icon: <Microscope size={18} />, table: 'lab_tests_list', col: 'name' },
   ];
 
-  // Shift Periods
   const shiftPeriods = [
     { label: 'الفترة الصباحية (9:00 ص - 1:00 م)', id: 'morning' },
     { label: 'الفترة المسائية (4:00 م - 8:00 م)', id: 'evening' },
   ];
 
-  // Helper: Normalize Arabic Text
   const normalizeText = (text) => {
     if (!text) return "";
-    return text
-      .replace("عيادة", "") 
-      .replace("قسم", "")   
-      .replace(/ال/g, "")   
-      .replace(/[ةه]/g, "") 
-      .replace(/[أإآ]/g, "ا") 
-      .replace(/\s/g, "")   
-      .trim();
+    return text.replace("عيادة", "").replace("قسم", "").replace(/ال/g, "").replace(/[ةه]/g, "").replace(/[أإآ]/g, "ا").replace(/\s/g, "").trim();
   };
 
-  // 1. Fetch Primary Data (تم التعديل لاستخدام priority)
+  // --- NEW: Handle Pre-Selected Doctor (When coming from Doctor Details Page) ---
+  useEffect(() => {
+    if (preSelectedDoctor) {
+      setActiveTab('doctors');
+      setSelectedPrimary(preSelectedDoctor.name);
+      setSelectedDoctor(preSelectedDoctor);
+    }
+  }, [preSelectedDoctor]);
+
+  // 1. Fetch Primary Data
   useEffect(() => {
     const fetchPrimaryData = async () => {
       setLoading(true);
       setPrimaryOptions([]);
-      setSelectedPrimary('');
-      setSelectedDoctor(null);
+      
+      // Only reset selection if we DO NOT have a pre-selected doctor
+      if (!preSelectedDoctor) {
+          setSelectedPrimary('');
+          setSelectedDoctor(null);
+      }
+
       setSecondaryOptions([]);
       setSelectedLabItems([]);
       setLabSelectionType(null);
-      setTime('');
+      
+      // Don't reset time if we are just switching tabs logically
+      // setTime(''); 
       setError('');
 
       try {
@@ -111,42 +89,33 @@ export default function AppointmentWidget() {
               .from(currentTab.table)
               .select(activeTab === 'doctors' ? '*' : currentTab.col);
 
-            // --- منطق الترتيب المخصص ---
             if (activeTab === 'clinics') {
-               // العيادات: نستخدم sort_order
                query = query.order('sort_order', { ascending: true, nullsFirst: false })
                             .order('clinic_number', { ascending: true });
             } else if (activeTab === 'doctors') {
-               // الأطباء: نستخدم priority حسب طلبك
                query = query.order('priority', { ascending: true, nullsFirst: false })
                             .order('id', { ascending: true });
             }
-            // ---------------------------
 
             const { data: mainData, error: mainError } = await query;
-            
             if (mainError) throw mainError;
             setPrimaryOptions(mainData || []);
 
           } catch (sortError) {
-            console.warn("Sorting failed, fallback to default...", sortError);
-            // Fallback
+            console.warn("Sorting failed, fallback...", sortError);
             const { data: fallbackData } = await supabase
               .from(currentTab.table)
               .select(activeTab === 'doctors' ? '*' : currentTab.col);
             setPrimaryOptions(fallbackData || []);
           }
 
-          // جلب قائمة الأطباء الكاملة للفلترة (مع الترتيب أيضاً)
           if (activeTab === 'clinics') {
             try {
                 const { data: docsData, error: docsError } = await supabase
                   .from('doctors')
                   .select('*')
-                  // هنا أيضاً نستخدم priority
                   .order('priority', { ascending: true, nullsFirst: false })
                   .order('id', { ascending: true });
-                
                 if (docsError) throw docsError;
                 setAllDoctors(docsData || []);
             } catch (docSortError) {
@@ -156,13 +125,13 @@ export default function AppointmentWidget() {
           }
         }
       } catch (err) {
-        console.error("Critical Error fetching data:", err);
+        console.error("Error fetching data:", err);
       } finally {
         setLoading(false);
       }
     };
     fetchPrimaryData();
-  }, [activeTab]);
+  }, [activeTab, preSelectedDoctor]); // Added preSelectedDoctor to dependency
 
   // 2. Filter Doctors locally
   useEffect(() => {
@@ -177,7 +146,6 @@ export default function AppointmentWidget() {
     }
   }, [activeTab, selectedPrimary, allDoctors]);
 
-  // 3. Handle Doctor Selection
   const handleDoctorChange = (docName) => {
     let doc = null;
     if (activeTab === 'doctors') {
@@ -189,7 +157,6 @@ export default function AppointmentWidget() {
     setTime('');
   };
 
-  // --- Lab Selection Handlers ---
   const handleAddSingleTest = (testName) => {
     if (!testName) return;
     if (labSelectionType === 'package') {
@@ -222,7 +189,6 @@ export default function AppointmentWidget() {
     if (updated.length === 0) setLabSelectionType(null);
   };
 
-  // 4. Time Selection Logic
   const renderTimeInput = () => {
     if (activeTab === 'scans' || activeTab === 'lab') {
         return (
@@ -241,6 +207,7 @@ export default function AppointmentWidget() {
     let placeholder = "اختر الفترة...";
     let available = shiftPeriods;
     
+    // LOGIC: Use selectedDoctor (which might be the preSelectedDoctor)
     if (selectedDoctor && selectedDoctor.shift) {
         const shift = selectedDoctor.shift;
         const showMorning = shift.includes('صباح');
@@ -272,7 +239,6 @@ export default function AppointmentWidget() {
     );
   };
 
-  // 5. Submit & Navigate
   const handleBookNow = () => {
     let finalSelection = selectedPrimary;
 
@@ -317,26 +283,38 @@ export default function AppointmentWidget() {
   return (
     <div className="bg-white rounded-[2rem] shadow-xl p-5 md:p-8 w-full border border-gray-100 relative">
       
-      {/* Tabs */}
-      <div className="relative mb-8">
-        <div className="flex overflow-x-auto gap-3 pb-4 no-scrollbar snap-x touch-pan-x">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`
-                flex-shrink-0 snap-start flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm md:text-base transition-all duration-300
-                ${activeTab === tab.id 
-                  ? 'bg-teal-500 text-white shadow-lg shadow-teal-200 ring-2 ring-teal-100 ring-offset-2' 
-                  : 'bg-gray-50 text-gray-500 hover:bg-gray-100 border border-gray-100'}
-              `}
-            >
-              {tab.icon}
-              <span className="whitespace-nowrap">{tab.label}</span>
-            </button>
-          ))}
+      {/* Tabs - Hide tabs if we are in "Single Doctor Mode" (optional, but cleaner) */}
+      {!preSelectedDoctor && (
+        <div className="relative mb-8">
+            <div className="flex overflow-x-auto gap-3 pb-4 no-scrollbar snap-x touch-pan-x">
+            {tabs.map((tab) => (
+                <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`
+                    flex-shrink-0 snap-start flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm md:text-base transition-all duration-300
+                    ${activeTab === tab.id 
+                    ? 'bg-teal-500 text-white shadow-lg shadow-teal-200 ring-2 ring-teal-100 ring-offset-2' 
+                    : 'bg-gray-50 text-gray-500 hover:bg-gray-100 border border-gray-100'}
+                `}
+                >
+                {tab.icon}
+                <span className="whitespace-nowrap">{tab.label}</span>
+                </button>
+            ))}
+            </div>
         </div>
-      </div>
+      )}
+
+      {/* Title for Doctor Mode */}
+      {preSelectedDoctor && (
+          <div className="mb-6 border-b border-gray-100 pb-4">
+              <h3 className="text-lg font-bold text-blue-900 flex items-center gap-2">
+                  <i className="fas fa-calendar-plus text-teal-500"></i>
+                  حجز موعد مع د. {preSelectedDoctor.name}
+              </h3>
+          </div>
+      )}
 
       {/* Form Grid */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
@@ -345,19 +323,13 @@ export default function AppointmentWidget() {
         {activeTab === 'lab' ? (
             <>
                 <div className="md:col-span-3">
-                    <label className={`block font-bold mb-2 text-sm ${labSelectionType === 'package' ? 'text-gray-300' : 'text-gray-700'}`}>
-                        الفحوصات الفردية
-                    </label>
+                    <label className={`block font-bold mb-2 text-sm ${labSelectionType === 'package' ? 'text-gray-300' : 'text-gray-700'}`}>الفحوصات الفردية</label>
                     <div className="relative">
                         <select 
                             disabled={loading}
                             value="" 
                             onChange={(e) => handleAddSingleTest(e.target.value)}
-                            className={`w-full border py-3.5 px-4 pr-10 rounded-xl focus:outline-none appearance-none transition cursor-pointer font-medium text-sm
-                                ${labSelectionType === 'package' 
-                                    ? 'bg-gray-100 border-gray-100 text-gray-400' 
-                                    : 'bg-gray-50 border-gray-200 text-gray-700 focus:ring-2 focus:ring-teal-500 focus:bg-white'}
-                            `}
+                            className={`w-full border py-3.5 px-4 pr-10 rounded-xl focus:outline-none appearance-none transition cursor-pointer font-medium text-sm ${labSelectionType === 'package' ? 'bg-gray-100 border-gray-100 text-gray-400' : 'bg-gray-50 border-gray-200 text-gray-700 focus:ring-2 focus:ring-teal-500 focus:bg-white'}`}
                         >
                             <option value="">اختر فحصاً لإضافته...</option>
                             {!loading && primaryOptions.map((item, index) => (
@@ -367,20 +339,13 @@ export default function AppointmentWidget() {
                         <ChevronDown className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
                     </div>
                 </div>
-
                 <div className="md:col-span-3">
-                    <label className={`block font-bold mb-2 text-sm ${labSelectionType === 'single' ? 'text-gray-300' : 'text-gray-700'}`}>
-                        باقات الفحوصات
-                    </label>
+                    <label className={`block font-bold mb-2 text-sm ${labSelectionType === 'single' ? 'text-gray-300' : 'text-gray-700'}`}>باقات الفحوصات</label>
                     <div className="relative">
                         <select 
                             value="" 
                             onChange={(e) => handleAddPackage(e.target.value)}
-                            className={`w-full border py-3.5 px-4 pr-10 rounded-xl focus:outline-none appearance-none transition cursor-pointer font-medium text-sm
-                                ${labSelectionType === 'single' 
-                                    ? 'bg-gray-100 border-gray-100 text-gray-400' 
-                                    : 'bg-teal-50 border-teal-100 text-teal-800 focus:ring-2 focus:ring-teal-500 focus:bg-white'}
-                            `}
+                            className={`w-full border py-3.5 px-4 pr-10 rounded-xl focus:outline-none appearance-none transition cursor-pointer font-medium text-sm ${labSelectionType === 'single' ? 'bg-gray-100 border-gray-100 text-gray-400' : 'bg-teal-50 border-teal-100 text-teal-800 focus:ring-2 focus:ring-teal-500 focus:bg-white'}`}
                         >
                             <option value="">اختر باقة لإضافتها...</option>
                             {LAB_PACKAGES.map((pkg, index) => (
@@ -394,18 +359,20 @@ export default function AppointmentWidget() {
         ) : (
             <div className={`${activeTab === 'clinics' ? 'md:col-span-3' : 'md:col-span-4'}`}>
                 <label className="block text-gray-700 font-bold mb-2 text-sm">
-                    {activeTab === 'doctors' ? 'اختر الطبيب' : 
-                    activeTab === 'clinics' ? 'اختر العيادة' : 'اختر نوع الأشعة'}
+                    {activeTab === 'doctors' ? 'الطبيب المختار' : activeTab === 'clinics' ? 'اختر العيادة' : 'اختر نوع الأشعة'}
                 </label>
                 <div className="relative">
                     <select 
-                    disabled={loading}
+                    // DISABLE SELECTION IF PRE-SELECTED
+                    disabled={loading || !!preSelectedDoctor} 
                     value={selectedPrimary}
                     onChange={(e) => {
                         setSelectedPrimary(e.target.value);
                         if (activeTab === 'doctors') handleDoctorChange(e.target.value);
                     }}
-                    className="w-full bg-gray-50 border border-gray-200 text-gray-700 py-3.5 px-4 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white appearance-none transition cursor-pointer font-medium disabled:opacity-50 text-sm"
+                    className={`w-full border text-gray-700 py-3.5 px-4 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white appearance-none transition cursor-pointer font-medium text-sm
+                        ${preSelectedDoctor ? 'bg-gray-100 border-gray-200 cursor-not-allowed' : 'bg-gray-50 border-gray-200'}
+                    `}
                     >
                     <option value="">{loading ? "جاري التحميل..." : "اختر من القائمة..."}</option>
                     {!loading && primaryOptions.map((item, index) => {
@@ -413,7 +380,7 @@ export default function AppointmentWidget() {
                         return <option key={index} value={val}>{val}</option>
                     })}
                     </select>
-                    <ChevronDown className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
+                    {!preSelectedDoctor && <ChevronDown className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />}
                 </div>
             </div>
         )}
@@ -495,7 +462,6 @@ export default function AppointmentWidget() {
 
       </div>
 
-      {/* Error Message */}
       {error && (
         <div className="mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg font-bold flex items-center gap-2 animate-bounce">
             <CheckCircle size={16} className="rotate-45" />
@@ -503,17 +469,19 @@ export default function AppointmentWidget() {
         </div>
       )}
 
-      {/* Footer Info */}
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-4 text-xs md:text-sm text-gray-500 border-t border-gray-100 pt-4">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-          فريق الدعم متاح الان
+      {/* Hide footer info in Doctor Details mode to save space */}
+      {!preSelectedDoctor && (
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-4 text-xs md:text-sm text-gray-500 border-t border-gray-100 pt-4">
+            <div className="flex items-center gap-2">
+            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+            فريق الدعم متاح الان
+            </div>
+            <div className="flex items-center gap-4" dir="ltr">
+            <span className="flex items-center gap-1"><Clock size={14}/> 24/7 متاح</span>
+            <span className="flex items-center gap-1 text-teal-600 font-bold"><Phone size={14}/> 777552666</span>
+            </div>
         </div>
-        <div className="flex items-center gap-4" dir="ltr">
-          <span className="flex items-center gap-1"><Clock size={14}/> 24/7 متاح</span>
-          <span className="flex items-center gap-1 text-teal-600 font-bold"><Phone size={14}/> 777552666</span>
-        </div>
-      </div>
+      )}
 
     </div>
   );

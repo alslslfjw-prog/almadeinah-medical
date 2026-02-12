@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { 
   Calendar, Clock, User, Phone, CheckCircle, ArrowRight, MapPin, 
-  CreditCard, Wallet, Building2 // Added icons for payment
+  CreditCard, Building2, UserCircle, CalendarDays 
 } from 'lucide-react';
 
 export default function Checkout() {
@@ -11,12 +11,14 @@ export default function Checkout() {
   const navigate = useNavigate();
   const bookingData = location.state;
 
-  // Updated state: added 'address' and 'paymentMethod', removed 'notes'
+  // Updated state: Added 'birthDate' and 'gender'
   const [formData, setFormData] = useState({ 
     name: '', 
+    birthDate: '', 
+    gender: '',
     phone: '', 
     address: '', 
-    paymentMethod: 'center' // Default to 'center'
+    paymentMethod: 'center' 
   });
   
   const [loading, setLoading] = useState(false);
@@ -44,16 +46,16 @@ export default function Checkout() {
     setLoading(true);
 
     try {
-      // Ensure 'appointments' table has columns for address/payment if you want to save them
-      // If not, you might need to update the table structure first.
       const { error } = await supabase
         .from('appointments')
         .insert([
           {
             patient_name: formData.name,
             patient_phone: formData.phone,
-            // You might need to add these columns to your Supabase table:
-            // patient_address: formData.address, 
+            // Ensure you add these columns to your Supabase 'appointments' table:
+            // patient_dob: formData.birthDate,
+            // patient_gender: formData.gender,
+            // patient_address: formData.address,
             // payment_method: formData.paymentMethod,
             type: bookingData.type,
             service_name: bookingData.doctor ? bookingData.doctor.name : bookingData.primarySelection,
@@ -177,9 +179,8 @@ export default function Checkout() {
 
               <form onSubmit={handleSubmit} className="space-y-6">
                 
-                <div className="grid md:grid-cols-2 gap-6">
-                    {/* Name */}
-                    <div>
+                {/* Name Field */}
+                <div>
                     <label className="block text-gray-700 font-bold mb-2 text-sm">الاسم الثلاثي</label>
                     <div className="relative">
                         <input 
@@ -192,42 +193,82 @@ export default function Checkout() {
                         />
                         <User className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                     </div>
+                </div>
+
+                {/* --- NEW: Gender & Birth Date --- */}
+                <div className="grid md:grid-cols-2 gap-6">
+                    
+                    {/* Gender */}
+                    <div>
+                        <label className="block text-gray-700 font-bold mb-2 text-sm">الجنس</label>
+                        <div className="relative">
+                            <select 
+                                required
+                                value={formData.gender}
+                                onChange={(e) => setFormData({...formData, gender: e.target.value})}
+                                className="w-full bg-gray-50 border border-gray-200 text-gray-800 py-3.5 px-4 pr-12 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white appearance-none transition cursor-pointer"
+                            >
+                                <option value="">اختر الجنس...</option>
+                                <option value="male">ذكر</option>
+                                <option value="female">أنثى</option>
+                            </select>
+                            <UserCircle className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                        </div>
                     </div>
 
+                    {/* Date of Birth */}
+                    <div>
+                        <label className="block text-gray-700 font-bold mb-2 text-sm">تاريخ الميلاد</label>
+                        <div className="relative">
+                            <input 
+                                required
+                                type="date"
+                                max={new Date().toISOString().split("T")[0]} // Disable future dates
+                                value={formData.birthDate}
+                                onChange={(e) => setFormData({...formData, birthDate: e.target.value})}
+                                className="w-full bg-gray-50 border border-gray-200 text-gray-800 py-3.5 px-4 pr-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Phone & Address */}
+                <div className="grid md:grid-cols-2 gap-6">
+                    
                     {/* Phone */}
                     <div>
-                    <label className="block text-gray-700 font-bold mb-2 text-sm">رقم الهاتف (واتساب)</label>
-                    <div className="relative">
-                        <input 
-                        required
-                        type="tel"
-                        placeholder="77xxxxxxx"
-                        value={formData.phone}
-                        onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                        className="w-full bg-gray-50 border border-gray-200 text-gray-800 py-3.5 px-4 pr-12 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition"
-                        />
-                        <Phone className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                        <label className="block text-gray-700 font-bold mb-2 text-sm">رقم الهاتف (واتساب)</label>
+                        <div className="relative">
+                            <input 
+                            required
+                            type="tel"
+                            placeholder="77xxxxxxx"
+                            value={formData.phone}
+                            onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                            className="w-full bg-gray-50 border border-gray-200 text-gray-800 py-3.5 px-4 pr-12 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition"
+                            />
+                            <Phone className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                        </div>
                     </div>
+
+                    {/* Address */}
+                    <div>
+                        <label className="block text-gray-700 font-bold mb-2 text-sm">عنوان السكن</label>
+                        <div className="relative">
+                            <input 
+                                required
+                                type="text"
+                                placeholder="المدينة - الحي"
+                                value={formData.address}
+                                onChange={(e) => setFormData({...formData, address: e.target.value})}
+                                className="w-full bg-gray-50 border border-gray-200 text-gray-800 py-3.5 px-4 pr-12 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition"
+                            />
+                            <MapPin className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                        </div>
                     </div>
                 </div>
 
-                {/* Address (New Required Field) */}
-                <div>
-                  <label className="block text-gray-700 font-bold mb-2 text-sm">عنوان السكن</label>
-                  <div className="relative">
-                    <input 
-                        required
-                        type="text"
-                        placeholder="المدينة - الحي - الشارع"
-                        value={formData.address}
-                        onChange={(e) => setFormData({...formData, address: e.target.value})}
-                        className="w-full bg-gray-50 border border-gray-200 text-gray-800 py-3.5 px-4 pr-12 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition"
-                    />
-                    <MapPin className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                  </div>
-                </div>
-
-                {/* Payment Method Section (New) */}
+                {/* Payment Method Section */}
                 <div>
                     <label className="block text-gray-700 font-bold mb-3 text-sm">طريقة الدفع</label>
                     <div className="grid md:grid-cols-2 gap-4">

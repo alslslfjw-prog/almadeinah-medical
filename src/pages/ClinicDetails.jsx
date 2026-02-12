@@ -23,6 +23,12 @@ export default function ClinicDetails() {
     shift: ''
   });
 
+  // --- 1. Define Shifts (Same as Home Page) ---
+  const shiftPeriods = [
+    { label: 'الفترة الصباحية (9:00 ص - 1:00 م)', id: 'morning' },
+    { label: 'الفترة المسائية (4:00 م - 8:00 م)', id: 'evening' },
+  ];
+
   // Fetch Data
   useEffect(() => {
     async function fetchClinicDetails() {
@@ -49,7 +55,10 @@ export default function ClinicDetails() {
         const { data: doctorsData } = await supabase
             .from('doctors')
             .select('*')
-            .eq('clinic_id', id); // Direct link!
+            .eq('clinic_id', id)
+            // Sort by priority just like Home Page
+            .order('priority', { ascending: true, nullsFirst: false }) 
+            .order('id', { ascending: true });
           
         setDoctors(doctorsData || []);
 
@@ -61,6 +70,26 @@ export default function ClinicDetails() {
     }
     fetchClinicDetails();
   }, [id]);
+
+  // --- 2. Smart Logic: Get Selected Doctor Object ---
+  const selectedDoctor = doctors.find(d => d.id.toString() === bookingForm.doctorId);
+
+  // --- 3. Smart Logic: Filter Shifts based on Doctor ---
+  const getAvailableShifts = () => {
+    // If no doctor selected, or doctor has no shift data, show all
+    if (!selectedDoctor || !selectedDoctor.shift) return shiftPeriods;
+    
+    const shift = selectedDoctor.shift;
+    const showMorning = shift.includes('صباح');
+    const showEvening = shift.includes('عصر') || shift.includes('مساء') || shift.includes('م');
+    
+    if (showMorning && !showEvening) return [shiftPeriods[0]];
+    if (!showMorning && showEvening) return [shiftPeriods[1]];
+    
+    return shiftPeriods;
+  };
+
+  const availableShifts = getAvailableShifts();
 
   // Handle Booking Submit
   const handleBookNow = () => {
@@ -78,17 +107,15 @@ export default function ClinicDetails() {
       return;
     }
 
-    // Find full doctor object
-    const selectedDoctor = doctors.find(d => d.id.toString() === bookingForm.doctorId);
-
-    // Navigate to Checkout
+    // Navigate to Checkout (Data Structure Matches Home Page)
     navigate('/checkout', {
       state: {
-        type: 'doctors',
-        primarySelection: clinic.name,
-        doctor: selectedDoctor,
+        type: 'clinics', // Source
+        primarySelection: clinic.name, // Clinic Name
+        doctor: selectedDoctor, // Full Doctor Object
         date: bookingForm.date,
-        time: bookingForm.shift
+        time: bookingForm.shift,
+        isPackage: false
       }
     });
   };
@@ -157,7 +184,10 @@ export default function ClinicDetails() {
                                 <select 
                                     className="w-full bg-gray-50 border border-gray-200 text-gray-700 py-3.5 px-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 appearance-none cursor-pointer disabled:bg-gray-100"
                                     value={bookingForm.doctorId}
-                                    onChange={(e) => setBookingForm({...bookingForm, doctorId: e.target.value})}
+                                    onChange={(e) => {
+                                        // Reset shift when doctor changes because new doctor might have different shifts
+                                        setBookingForm({...bookingForm, doctorId: e.target.value, shift: ''});
+                                    }}
                                     disabled={doctors.length === 0}
                                 >
                                     <option value="">{doctors.length === 0 ? "لا يوجد أطباء متاحين حالياً" : "اختر الطبيب المعالج..."}</option>
@@ -181,18 +211,26 @@ export default function ClinicDetails() {
                             />
                         </div>
 
-                        {/* 3. Shift Select (Morning/Evening) */}
+                        {/* 3. Shift Select (Dynamic based on selected doctor) */}
                         <div>
                             <label className="block text-sm font-bold text-gray-700 mb-1">فترة الدوام</label>
                             <div className="relative">
                                 <select 
-                                    className="w-full bg-gray-50 border border-gray-200 text-gray-700 py-3.5 px-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 appearance-none cursor-pointer"
+                                    className="w-full bg-gray-50 border border-gray-200 text-gray-700 py-3.5 px-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 appearance-none cursor-pointer disabled:bg-gray-100 disabled:text-gray-400"
                                     value={bookingForm.shift}
                                     onChange={(e) => setBookingForm({...bookingForm, shift: e.target.value})}
+                                    disabled={!bookingForm.doctorId} // Disable if no doctor selected
                                 >
-                                    <option value="">اختر الفترة...</option>
-                                    <option value="الفترة الصباحية (8:00 ص - 1:00 م)">الفترة الصباحية (8:00 ص - 1:00 م)</option>
-                                    <option value="الفترة المسائية (4:00 م - 8:00 م)">الفترة المسائية (4:00 م - 8:00 م)</option>
+                                    <option value="">
+                                        {!bookingForm.doctorId ? "يرجى اختيار الطبيب أولاً" : "اختر الفترة..."}
+                                    </option>
+                                    
+                                    {/* Map over the filtered shifts */}
+                                    {availableShifts.map((shift, idx) => (
+                                        <option key={idx} value={shift.label}>
+                                            {shift.label}
+                                        </option>
+                                    ))}
                                 </select>
                                 <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
                             </div>
