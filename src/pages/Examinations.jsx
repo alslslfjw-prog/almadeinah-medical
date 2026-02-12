@@ -2,12 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Link } from 'react-router-dom';
 import { 
-  Activity, Microscope, Zap, Dna, Droplet, Shield, Bug,
-  AlertTriangle, CheckCircle, ShieldCheck, BadgeCheck,
-  Package, ClipboardList, ArrowLeft 
+  Activity, Microscope, Zap, Dna, Droplet, Shield, 
+  AlertTriangle, BadgeCheck, ShieldCheck,
+  Package, ClipboardList, ArrowLeft, FlaskConical 
 } from 'lucide-react';
 
-// Map icon strings from DB to Lucide Components
+// 1. خريطة الأيقونات (استخدمنا فقط الأيقونات المضمونة لتجنب الأخطاء)
 const iconMap = {
   'Activity': <Activity size={28} />,
   'Microscope': <Microscope size={28} />,
@@ -15,9 +15,32 @@ const iconMap = {
   'Dna': <Dna size={28} />,
   'Droplet': <Droplet size={28} />,
   'Shield': <Shield size={28} />,
-  'Bug': <Microscope size={28} />, 
+  'Bug': <Microscope size={28} />, // استبدلنا Bug بـ Microscope للأمان
+  'Flask': <FlaskConical size={28} />,
+  'Virus': <Activity size={28} />, // استبدال مؤقت
+  'Heart': <Activity size={28} />, // استبدال مؤقت
+  'Syringe': <FlaskConical size={28} />, // استبدال مؤقت
+  'Scan': <Activity size={28} />, // استبدال مؤقت
   'default': <Activity size={28} />
 };
+
+// 2. قائمة الألوان (Safelist)
+// وجود هذه المصفوفة في الكود يجبر Tailwind على تحميل هذه الألوان وعدم حذفها
+// حتى لو كانت قادمة من قاعدة البيانات
+const colorSafelist = [
+  'bg-red-600',
+  'bg-teal-600',
+  'bg-orange-500',
+  'bg-green-600',
+  'bg-teal-500',
+  'bg-purple-600',
+  'bg-blue-600',
+  'bg-indigo-600',
+  'bg-rose-600',
+  'bg-cyan-600',
+  'bg-emerald-600',
+  'bg-violet-600'
+];
 
 export default function Examinations() {
   const [tests, setTests] = useState([]);
@@ -44,7 +67,6 @@ export default function Examinations() {
     fetchExaminations();
   }, []);
 
-  // --- 1. بيانات معايير السلامة ---
   const safetyStandards = [
     "إبلاغ المسؤول عن كافة الإصابات، والحوادث، والكسور الناتجة عن الزجاج أو المعدات الموجودة.",
     "ربط الشعر، وتغطيته لتلافي تعرضه للهب.",
@@ -78,7 +100,7 @@ export default function Examinations() {
         </div>
       </section>
 
-      {/* --- NEW SECTION: Main Categories Navigation (Tests & Packages) --- */}
+      {/* --- Main Categories Navigation --- */}
       <section className="relative z-20 -mt-16 pb-12">
         <div className="container mx-auto px-6">
             <div className="grid md:grid-cols-2 gap-6 max-w-5xl mx-auto">
@@ -86,9 +108,7 @@ export default function Examinations() {
                 {/* 1. All Tests Card */}
                 <Link to="/examinations/all-tests" className="group">
                     <div className="bg-white rounded-3xl p-8 shadow-xl border border-gray-100 flex items-center justify-between relative overflow-hidden transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:border-blue-200">
-                        {/* Background Bloom */}
                         <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full blur-3xl -mr-10 -mt-10 transition-all group-hover:bg-blue-100"></div>
-                        
                         <div className="relative z-10 flex items-center gap-5">
                             <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300 shadow-sm">
                                 <ClipboardList size={32} />
@@ -98,19 +118,16 @@ export default function Examinations() {
                                 <p className="text-gray-500 text-sm">استعرض قائمة شاملة لجميع الفحوصات الفردية</p>
                             </div>
                         </div>
-
                         <div className="relative z-10 w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center text-gray-400 group-hover:bg-blue-600 group-hover:text-white transition-all duration-300">
                             <ArrowLeft size={20} />
                         </div>
                     </div>
                 </Link>
 
-                {/* 2. Packages Card (LINKED HERE) */}
+                {/* 2. Packages Card */}
                 <Link to="/examinations/packages" className="group">
                     <div className="bg-white rounded-3xl p-8 shadow-xl border border-gray-100 flex items-center justify-between relative overflow-hidden transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:border-teal-200">
-                        {/* Background Bloom */}
                         <div className="absolute top-0 right-0 w-32 h-32 bg-teal-50 rounded-full blur-3xl -mr-10 -mt-10 transition-all group-hover:bg-teal-100"></div>
-                        
                         <div className="relative z-10 flex items-center gap-5">
                             <div className="w-16 h-16 bg-teal-100 text-teal-600 rounded-2xl flex items-center justify-center group-hover:bg-teal-600 group-hover:text-white transition-colors duration-300 shadow-sm">
                                 <Package size={32} />
@@ -120,7 +137,6 @@ export default function Examinations() {
                                 <p className="text-gray-500 text-sm">باقات متكاملة وموفرة لصحتك وصحة عائلتك</p>
                             </div>
                         </div>
-
                         <div className="relative z-10 w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center text-gray-400 group-hover:bg-teal-600 group-hover:text-white transition-all duration-300">
                             <ArrowLeft size={20} />
                         </div>
@@ -135,7 +151,6 @@ export default function Examinations() {
       <section className="pb-20 bg-gray-50 pt-10">
         <div className="container mx-auto px-6">
           
-            {/* Section Title */}
             <div className="text-center mb-12">
                 <h2 className="text-2xl font-bold text-gray-800">أقسام المختبر التخصصية</h2>
                 <div className="h-1 w-20 bg-teal-500 mx-auto mt-4 rounded-full"></div>
@@ -149,14 +164,21 @@ export default function Examinations() {
           ) : (
             <div className="grid md:grid-cols-2 gap-8">
               {tests.map((test) => {
-                const Icon = iconMap[test.icon_class] || iconMap['default'];
+                // 1. الأيقونة
+                const iconKey = test.icon_class ? test.icon_class.trim() : 'default';
+                const Icon = iconMap[iconKey] || iconMap['default'];
                 
+                // 2. اللون (مع تنظيف المسافات)
+                const dbColor = test.header_color ? test.header_color.trim() : 'bg-blue-600';
+                // نستخدم اللون من الداتا، وإذا لم يكن موجوداً نستخدم الأزرق كلون افتراضي
+                const headerColorClass = dbColor;
+
                 return (
                   <Link to={`/examinations/${test.id}`} key={test.id} className="block h-full">
                     <div className="bg-white rounded-[2rem] overflow-hidden shadow-sm hover:shadow-2xl transition-shadow duration-300 border border-gray-100 group flex flex-col h-full cursor-pointer">
                         
-                        {/* Header */}
-                        <div className={`${test.header_color || 'bg-blue-600'} p-5 flex justify-between items-center text-white relative overflow-hidden`}>
+                        {/* Header Section - تم الإصلاح */}
+                        <div className={`${headerColorClass} p-5 flex justify-between items-center text-white relative overflow-hidden transition-colors duration-300`}>
                             <div>
                                 <h3 className="font-bold text-xl mb-1">{test.title}</h3>
                                 <p className="text-xs text-white/80 font-mono tracking-wider uppercase">{test.title_en}</p>
@@ -218,7 +240,6 @@ export default function Examinations() {
             </div>
 
             <div className="grid md:grid-cols-2 gap-8 mb-16">
-                {/* Internal QC */}
                 <div className="bg-blue-50 rounded-3xl p-8 border border-blue-100 flex flex-col md:flex-row gap-6 items-start">
                     <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center shrink-0">
                         <Activity size={32} />
@@ -231,7 +252,6 @@ export default function Examinations() {
                     </div>
                 </div>
 
-                {/* External QC */}
                 <div className="bg-teal-50 rounded-3xl p-8 border border-teal-100 flex flex-col md:flex-row gap-6 items-start">
                     <div className="w-16 h-16 bg-teal-100 text-teal-600 rounded-2xl flex items-center justify-center shrink-0">
                         <ShieldCheck size={32} />
@@ -245,7 +265,6 @@ export default function Examinations() {
                 </div>
             </div>
 
-            {/* QC Conditions */}
             <div className="bg-white rounded-3xl shadow-lg border border-gray-100 p-8 md:p-12">
                 <h3 className="text-xl font-bold text-gray-800 mb-8 border-r-4 border-teal-500 pr-4">
                     شروط ضبط الجودة في المختبرات الطبية
@@ -269,7 +288,6 @@ export default function Examinations() {
 
       {/* --- قسم معايير السلامة --- */}
       <section className="py-20 bg-gray-900 text-white relative overflow-hidden">
-        {/* خلفية جمالية */}
         <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
             <div className="absolute right-0 top-0 w-96 h-96 bg-blue-500 rounded-full blur-[100px]"></div>
             <div className="absolute left-0 bottom-0 w-96 h-96 bg-teal-500 rounded-full blur-[100px]"></div>
