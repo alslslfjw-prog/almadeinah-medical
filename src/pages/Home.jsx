@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase'; 
-import { Link, useNavigate } from 'react-router-dom'; // Added useNavigate
+import { Link, useNavigate } from 'react-router-dom';
 import AppointmentWidget from '../components/AppointmentWidget';
 import { 
   Building2, User, Activity, FlaskConical, 
@@ -10,7 +10,7 @@ import {
 
 const Home = () => {
   const [doctors, setDoctors] = useState([]);
-  const navigate = useNavigate(); // Hook for navigation
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchDoctors = async () => {
@@ -18,11 +18,9 @@ const Home = () => {
         const { data, error } = await supabase
           .from('doctors')
           .select('*')
-          // FILTER: Only get doctors who have a number in home_page_order
           .not('home_page_order', 'is', null)
-          // SORT: Order them 1, 2, 3...
           .order('home_page_order', { ascending: true })
-          .limit(6); // Limit to 6
+          .limit(6);
         
         if (error) throw error;
         if (data) setDoctors(data);
@@ -33,7 +31,6 @@ const Home = () => {
     fetchDoctors();
   }, []);
 
-  // Handler for clicking a card
   const handleCardClick = (id) => {
     navigate(`/doctors/${id}`);
   };
@@ -124,34 +121,35 @@ const Home = () => {
         </div>
       </section>
 
-      {/* 4. Our Doctors Section - (UPDATED with object-top) */}
+      {/* 4. Our Doctors Section - (UPDATED For Responsiveness) */}
       <section className="py-16 md:py-20 bg-gray-50">
         <div className="container mx-auto px-6 text-center">
           <h2 className="text-2xl md:text-3xl font-bold text-blue-900 mb-2">نخبة من كبار الأطباء الاستشاريين</h2>
           <p className="text-gray-500 mb-10 text-sm md:text-base">فريق من أفضل الأطباء في مختلف التخصصات</p>
           
-          {/* UPDATED GRID: grid-cols-2 on mobile, grid-cols-6 on large screens */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-6">
             {doctors.map((doctor) => (
               <div 
                 key={doctor.id} 
-                onClick={() => handleCardClick(doctor.id)} // Added Click Handler
+                onClick={() => handleCardClick(doctor.id)}
                 className="group bg-white p-4 rounded-2xl shadow-sm hover:shadow-xl transition text-center border border-gray-100 cursor-pointer flex flex-col items-center"
               >
                 <div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden border-2 border-teal-100 mb-3 group-hover:scale-110 transition duration-300">
                   <img 
                     src={doctor.image_url || "https://via.placeholder.com/150"} 
                     alt={doctor.name} 
-                    // ADDED object-top HERE:
                     className="w-full h-full object-cover object-top" 
                   />
                 </div>
                 {/* Name */}
                 <h3 className="text-sm md:text-base font-bold text-gray-800 line-clamp-1">{doctor.name}</h3>
-                {/* Specialty */}
-                <p className="text-teal-600 text-xs font-medium mb-2 line-clamp-1">{doctor.title || doctor.specialty}</p>
                 
-                {/* Icons (Optional - Hidden on small screens to save space in 6-grid) */}
+                {/* Specialty - FIXED HERE */}
+                {/* line-clamp-2 allows 2 lines, h-8 fixes height so cards align, text-[11px] for mobile fit */}
+                <p className="text-teal-600 text-[11px] md:text-xs font-medium mb-2 line-clamp-2 h-8 flex items-center justify-center leading-tight">
+                    {doctor.title || doctor.specialty}
+                </p>
+                
                 <div className="flex justify-center gap-2 text-gray-400 opacity-0 group-hover:opacity-100 transition mt-auto">
                   <Twitter size={14} className="hover:text-blue-400" />
                   <Linkedin size={14} className="hover:text-blue-700" />
@@ -168,7 +166,6 @@ const Home = () => {
 
       {/* 5. Medical Services Section - (No Changes) */}
       <section className="py-16 md:py-24 bg-gradient-to-br from-blue-900 to-teal-500 text-white relative overflow-hidden">
-        {/* ... (Same as before) ... */}
          <div className="container mx-auto px-6 relative z-10 text-center">
             <h2 className="text-2xl md:text-4xl font-bold mb-4">خدماتنا الطبية</h2>
             <p className="text-blue-100 mb-12 max-w-2xl mx-auto text-sm md:text-base">نقدم مجموعة شاملة من الخدمات الطبية المتخصصة</p>
@@ -211,7 +208,6 @@ const Home = () => {
 
       {/* 6. Why Choose Us Section - (No Changes) */}
       <section className="py-16 md:py-24 bg-white text-center">
-         {/* ... (Same as before) ... */}
           <div className="container mx-auto px-6">
             <h2 className="text-2xl md:text-3xl font-bold text-blue-900 mb-12">لماذا تختار مركزنا؟</h2>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 md:gap-12">

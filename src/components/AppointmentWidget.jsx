@@ -42,8 +42,8 @@ export default function AppointmentWidget({ preSelectedDoctor = null }) {
   ];
 
   const shiftPeriods = [
-    { label: 'الفترة الصباحية (9:00 ص - 1:00 م)', id: 'morning' },
-    { label: 'الفترة المسائية (4:00 م - 8:00 م)', id: 'evening' },
+    { label: 'الفترة الصباحية (8:00 ص - 1:00 م)', id: 'morning' },
+    { label: 'الفترة المسائية (4:00 م - 9:00 م)', id: 'evening' },
   ];
 
   const normalizeText = (text) => {

@@ -17,8 +17,8 @@ export default function DoctorDetails() {
 
   // Define the shifts (Same as Home Page)
   const shiftPeriods = [
-    { label: 'الفترة الصباحية', id: 'morning' },
-    { label: 'الفترة المسائية', id: 'evening' },
+    { label: 'الفترة الصباحية (8:00 ص - 1:00 م)', id: 'morning' },
+    { label: 'الفترة المسائية (4:00 م - 9:00 م)', id: 'evening' },
   ];
 
   // Fetch Doctor Data

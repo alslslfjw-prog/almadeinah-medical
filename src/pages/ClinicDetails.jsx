@@ -25,8 +25,8 @@ export default function ClinicDetails() {
 
   // --- 1. Define Shifts (Same as Home Page) ---
   const shiftPeriods = [
-    { label: 'الفترة الصباحية (9:00 ص - 1:00 م)', id: 'morning' },
-    { label: 'الفترة المسائية (4:00 م - 8:00 م)', id: 'evening' },
+    { label: 'الفترة الصباحية (8:00 ص - 1:00 م)', id: 'morning' },
+    { label: 'الفترة المسائية (4:00 م - 9:00 م)', id: 'evening' },
   ];
 
   // Fetch Data
@@ -304,40 +304,39 @@ export default function ClinicDetails() {
                     )}
                 </div>
 
-                {/* Doctors List */}
+                {/* Doctors List - UPDATED HERE */}
                 <div className="bg-white rounded-3xl shadow-sm p-8 border border-gray-100">
                     <h3 className="text-xl font-bold text-gray-800 mb-6 border-r-4 border-blue-500 pr-4">الأطباء المناوبون</h3>
                     
                     {doctors.length > 0 ? (
                         <div className="space-y-4">
                             {doctors.map((doctor) => (
-                                <div key={doctor.id} className="flex flex-col md:flex-row items-center md:items-start gap-6 p-4 rounded-2xl border border-gray-50 hover:border-blue-100 hover:bg-blue-50/30 transition group">
-                                    <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-white shadow-md shrink-0">
-                                        <img src={doctor.image_url || "https://via.placeholder.com/150"} alt={doctor.name} className="w-full h-full object-cover" />
-                                    </div>
-                                    <div className="flex-grow text-center md:text-right">
-                                        <h4 className="font-bold text-lg text-gray-800 group-hover:text-blue-700 transition">{doctor.name}</h4>
-                                        <p className="text-teal-600 text-sm mb-2">{doctor.title || doctor.category}</p>
-                                        <div className="flex items-center justify-center md:justify-start gap-1 text-yellow-400 text-xs mb-3">
-                                            <Star size={12} fill="currentColor" />
-                                            <span className="text-gray-400 font-medium">(4.8 تقييم)</span>
+                                // Wrapped in Link to make the whole card clickable
+                                <Link to={`/doctors/${doctor.id}`} key={doctor.id} className="block group">
+                                    <div className="flex flex-col md:flex-row items-center md:items-center gap-6 p-4 rounded-2xl border border-gray-50 hover:border-blue-200 hover:bg-blue-50/50 transition cursor-pointer">
+                                        
+                                        {/* Image */}
+                                        <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-white shadow-md shrink-0">
+                                            <img src={doctor.image_url || "https://via.placeholder.com/150"} alt={doctor.name} className="w-full h-full object-cover" />
                                         </div>
+                                        
+                                        {/* Text Info */}
+                                        <div className="flex-grow text-center md:text-right">
+                                            <h4 className="font-bold text-lg text-gray-800 group-hover:text-blue-700 transition">{doctor.name}</h4>
+                                            <p className="text-teal-600 text-sm mb-2">{doctor.title || doctor.category}</p>
+                                            <div className="flex items-center justify-center md:justify-start gap-1 text-yellow-400 text-xs">
+                                                <Star size={12} fill="currentColor" />
+                                                <span className="text-gray-400 font-medium">(4.8 تقييم)</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Icon to indicate it's clickable (Optional but good for UX) */}
+                                        <div className="hidden md:block text-gray-300 group-hover:text-blue-500 transition transform group-hover:-translate-x-1">
+                                            <ArrowRight size={20} className="rotate-180" /> {/* Rotated for RTL */}
+                                        </div>
+
                                     </div>
-                                    {/* Action Buttons */}
-                                    <div className="text-center md:text-left shrink-0">
-                                        <p className="text-gray-400 text-xs mb-1">سعر الكشف</p>
-                                        <p className="text-teal-600 font-bold text-lg mb-3">3,000 ر.ي</p>
-                                        <button 
-                                            onClick={() => {
-                                                setBookingForm({...bookingForm, doctorId: doctor.id.toString()});
-                                                window.scrollTo({ top: 0, behavior: 'smooth' });
-                                            }}
-                                            className="inline-block bg-white text-blue-600 border border-blue-200 px-6 py-2 rounded-full text-sm font-bold hover:bg-blue-600 hover:text-white transition"
-                                        >
-                                            احجز موعد
-                                        </button>
-                                    </div>
-                                </div>
+                                </Link>
                             ))}
                         </div>
                     ) : (
