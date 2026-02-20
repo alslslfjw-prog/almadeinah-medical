@@ -15,6 +15,8 @@ import ExaminationDetails from './pages/ExaminationDetails'; // Import the new p
 import AllTests from './pages/AllTests';
 import Packages from './pages/Packages'; // Import the new page
 import PackageDetails from './pages/PackageDetails'; // Import the new page
+import Blog from './pages/Blog';
+import BlogDetails from './pages/BlogDetails';
 
 function App() {
   return (
@@ -57,7 +59,9 @@ function App() {
               <Route path="/examinations/packages/:id" element={<PackageDetails />} /> {/* الرابط الجديد */}
             
 
-             
+             {/* Blog */}
+             <Route path="/blog" element={<Blog />} />
+             <Route path="/blog/:id" element={<BlogDetails />} />
             
           
             
