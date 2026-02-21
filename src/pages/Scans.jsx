@@ -9,8 +9,6 @@ import {
 const Scans = () => {
   const [scansList, setScansList] = useState([]);
   const [equipmentsList, setEquipmentsList] = useState([]);
-  // State specifically for the Endoscopy table
-  const [endoscopyList, setEndoscopyList] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [structuredScans, setStructuredScans] = useState([]);
 
@@ -19,7 +17,7 @@ const Scans = () => {
       try {
         setLoading(true);
 
-        // 1. Fetch Main Scans Categories
+        // 1. Fetch Main Scans Categories (We rely entirely on this now for details page compatibility)
         const { data: scansData, error: scansError } = await supabase
           .from('scans')
           .select('*')
@@ -34,14 +32,6 @@ const Scans = () => {
           .order('id', { ascending: true });
         if (equipError) throw equipError;
         setEquipmentsList(equipmentsData || []);
-
-        // 3. Fetch from the specific "Gastrointestinal-and-Liver-Endoscopy" table
-        const { data: endoscopyData, error: endoError } = await supabase
-            .from('gastrointestinal_and_liver_endoscopy')
-            .select('*');
-        
-        if (endoError) throw endoError;
-        setEndoscopyList(endoscopyData || []);
 
       } catch (error) {
         console.error('Error fetching data:', error.message);
@@ -63,20 +53,39 @@ const Scans = () => {
       const groups = [
         {
           title: "الأشعة المقطعية",
-          type: "single",
-          id: getID("الأشعة المقطعية") || getID("المقطعية"), 
+          type: "parent",
           icon: <LayoutGrid size={40} />,
           bg: "bg-blue-100 text-blue-600",
-          image: "https://jwmcjqsdsibflzsaqeek.supabase.co/storage/v1/object/public/equipment-images/ct-scan.jpg.png"
+          image: "https://jwmcjqsdsibflzsaqeek.supabase.co/storage/v1/object/public/equipment-images/ct-scan.jpg.png",
+          children: [ 
+            "الأشعة المقطعية للدماغ والجمجمة (CT Brain/Head)",
+            "الأشعة المقطعية للجيوب الأنفية وعظام الوجه (CT Paranasal Sinuses & Maxillofacial)",
+            "الأشعة المقطعية للرقبة (CT Neck)",
+            "الأشعة المقطعية للصدر عالية الدقة (HRCT Chest)",
+            "الأشعة المقطعية للبطن والحوض (CT Abdomen & Pelvis)",
+            "الأشعة المقطعية للعمود الفقري (عنقي، ظهري، قطني) (CT Spine)",
+            "الأشعة المقطعية للعظام والمفاصل (CT Bones & Joints)",
+            "تصوير الأوعية الدموية بالأشعة المقطعية (CT Angiography - CTA)"
+          ].map(name => ({ name, id: getID(name) || getID(name.split(' (')[0]) })).filter(c => c.name) 
         },
         {
-          // UPDATED: Fetches children from the specific 'endoscopyList' state
           title: "مناظير الجهاز الهضمي والكبد",
           type: "parent",
           icon: <Eye size={40} />,
           bg: "bg-orange-100 text-orange-600",
           image: "https://jwmcjqsdsibflzsaqeek.supabase.co/storage/v1/object/public/equipment-images/Gastrointestinal-and-Liver-Endoscopy.png",
-          children: endoscopyList.map(item => ({ name: item.name, id: null })) 
+          children: [
+            "مناظير المعدة والجهاز الهضمي العلوي",
+            "مناظير ربط دوالي المري وحقن دوالي المعدة",
+            "مناظير توسيع القناة الهضمية",
+            "مناظير استخراج جسم غريب من القناة الهضمية",
+            "مناظير القولون التشخيصية والعلاجية",
+            "الكشف المبكر عن سرطان القولون",
+            "استئصال لحميات الجهاز الهضمي",
+            "مناظير الجهاز الهضمي للأطفال العلوية والسفلية",
+            "تركيب بالونات المعدة",
+            "جهاز الارجون ليزر"
+          ].map(name => ({ name, id: getID(name) })).filter(c => c.id || c.name)
         },
         {
           title: "الأشعة السينية الرقمية",
@@ -92,7 +101,7 @@ const Scans = () => {
             "فحص القولون بصبغة الباريوم",
             "اشعة الصبغة للرحم وقنوات فالوب",
             "فحص البلعوم والمعده بصبغة الباريوم"
-          ].map(name => ({ name, id: getID(name) })).filter(c => c.id)
+          ].map(name => ({ name, id: getID(name) })).filter(c => c.id || c.name)
         },
         {
           title: "التصوير بالموجات فوق الصوتية",
@@ -105,27 +114,36 @@ const Scans = () => {
             "تصوير البروستات بالموجات فوق الصوتية",
             "تصوير الغدة الدرقية بالموجات فوق الصوتية",
             "تصوير الخصية بالموجات فوق الصوتية",
-            "تصوير الاوعية الدمويه - الدوبلر",
-            "إيكو القلب (Echo)"
-          ].map(name => ({ name, id: getID(name) })).filter(c => c.id)
+            "تصوير الاوعية الدمويه - الدوبلر"
+          ].map(name => ({ name, id: getID(name) })).filter(c => c.id || c.name)
         },
         {
-          title: "أشعة الماموجرام وتخطيطات أخرى",
+          title: "تصوير الثدي",
           type: "parent",
-          icon: <HeartPulse size={40} />,
+          icon: <Activity size={40} />,
           bg: "bg-pink-100 text-pink-600",
           image: "https://jwmcjqsdsibflzsaqeek.supabase.co/storage/v1/object/public/equipment-images/mammogram.jpg.png",
           children: [
-            "أشعة الماموجرام",
+            "أشعة الماموجرام (Mammogram)"
+          ].map(name => ({ name, id: getID(name) })).filter(c => c.id || c.name)
+        },
+        {
+          title: "الفحوصات الفسيولوجية وتخطيط القلب",
+          type: "parent",
+          icon: <HeartPulse size={40} />,
+          bg: "bg-red-100 text-red-600",
+          image: "https://images.unsplash.com/photo-1559757175-5700dde675bc?q=80&w=800&auto=format&fit=crop", 
+          children: [
             "تخطيط كهربية القلب (ECG)",
+            "تصوير القلب بالموجات فوق الصوتية (Echo)",
             "تخطيط كهربية الدماغ (EEG)"
-          ].map(name => ({ name, id: getID(name) || getID(name.split(' ')[0]) })).filter(c => c.id)
+          ].map(name => ({ name, id: getID(name) || getID(name.split(' (')[0]) })).filter(c => c.id || c.name)
         }
       ];
 
       setStructuredScans(groups);
     }
-  }, [scansList, endoscopyList]); // Added endoscopyList to dependency array
+  }, [scansList]);
 
   return (
     <div className="font-sans text-gray-800 bg-white" dir="rtl">
@@ -205,29 +223,6 @@ const Scans = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {structuredScans.map((group, index) => {
                 
-                // CASE 1: Single Scan
-                if (group.type === 'single') {
-                  return (
-                    <Link to={group.id ? `/scans/${group.id}` : '#'} key={index} className="block group h-full">
-                      <div className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 flex flex-col h-full">
-                        <div className="h-64 overflow-hidden relative">
-                           <img src={group.image} alt={group.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                           <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors"></div>
-                           <div className="absolute top-4 right-4 bg-white/90 backdrop-blur rounded-xl p-2 shadow-sm">
-                              {group.icon}
-                           </div>
-                        </div>
-                        <div className="p-6 flex flex-col flex-grow items-center justify-center text-center">
-                           <h3 className="text-xl font-bold text-gray-800 mb-2 group-hover:text-teal-600 transition-colors">
-                             {group.title}
-                           </h3>
-                           <span className="text-sm text-gray-400">اضغط لعرض التفاصيل</span>
-                        </div>
-                      </div>
-                    </Link>
-                  );
-                }
-
                 // CASE 2: Parent Category
                 return (
                   <div key={index} className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 flex flex-col h-full group">
@@ -242,9 +237,9 @@ const Scans = () => {
                         </div>
                      </div>
 
-                     <div className="p-4 bg-gray-50/50 border-t border-gray-100">
+                     <div className="p-4 bg-gray-50/50 border-t border-gray-100 flex-grow">
                         {group.children.length > 0 ? (
-                          <div className="max-h-44 overflow-y-auto pr-1 custom-scrollbar">
+                          <div className="max-h-48 overflow-y-auto pr-1 custom-scrollbar">
                             <ul className="space-y-2">
                                 {group.children.map((child, cIdx) => (
                                 <li key={cIdx}>
