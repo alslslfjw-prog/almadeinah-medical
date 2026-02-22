@@ -1,5 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
+import WhatsAppButton from './components/WhatsAppButton'; // Import the WhatsApp button component
+import Footer from './components/Footer';
 import Home from './pages/Home';
 import Doctors from './pages/Doctors';
 import DoctorDetails from './pages/DoctorDetails';
@@ -23,6 +25,7 @@ function App() {
     <Router>
       <div className="min-h-screen flex flex-col bg-gray-50">
         <Navbar />
+        <WhatsAppButton /> {/* Add the WhatsApp button to the app */}
         <main className="flex-grow">
           <Routes>
             <Route path="/" element={<Home />} />
@@ -67,10 +70,8 @@ function App() {
             
           </Routes>
         </main>
-        
-        <footer className="bg-secondary text-white py-8 text-center">
-          <p>© 2025 مركز المدينة الطبي التخصصي - جميع الحقوق محفوظة</p>
-        </footer>
+        <Footer />
+       
       </div>
     </Router>
   );

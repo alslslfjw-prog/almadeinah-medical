@@ -49,9 +49,7 @@ const Home = () => {
             <p className="text-gray-500 text-base md:text-lg mb-6 md:mb-8 leading-relaxed max-w-lg">
               نقدم خدمات طبية متكاملة بأحدث التقنيات العالمية. فريقنا الطبي جاهز لرعايتك على مدار الساعة.
             </p>
-            <button className="bg-teal-500 hover:bg-teal-600 text-white px-6 py-3 md:px-8 md:py-3 rounded-full font-bold shadow-lg transition transform hover:-translate-y-1 text-sm md:text-base">
-              تواصل معنا
-            </button>
+         
           </div>
 
           <div className="relative z-10 order-1 md:order-2 mb-8 md:mb-0">
@@ -191,7 +189,7 @@ const Home = () => {
                     <div className="w-16 h-16 md:w-20 md:h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition">
                         <Activity size={32} className="text-white" />
                     </div>
-                    <h3 className="text-lg md:text-xl font-bold mb-3">المدينة سكان</h3>
+                    <h3 className="text-lg md:text-xl font-bold mb-3">الأشعة التشخيصية</h3>
                     <p className="text-xs md:text-sm text-blue-100 leading-relaxed">أحدث أجهزة التصوير والتشخيص الطبي المتقدم</p>
                 </div>
 
@@ -250,14 +248,7 @@ const Home = () => {
           <p className="text-white/90 text-sm md:text-lg mb-10 max-w-2xl mx-auto">
             المواعيد متاحة عبر الإنترنت أو الهاتف. تفضل بزيارة مركز المدينة الطبي للتشخيص والعلاج.
           </p>
-          <div className="flex flex-col md:flex-row justify-center gap-4">
-            <button className="bg-white text-blue-600 px-10 py-4 rounded-full font-bold shadow-xl hover:bg-gray-100 transition transform hover:-translate-y-1">
-              حجز موعد جديد
-            </button>
-            <button className="bg-transparent border-2 border-white text-white px-10 py-4 rounded-full font-bold hover:bg-white/10 transition">
-              تواصل معنا
-            </button>
-          </div>
+          
         </div>
       </section>
 
