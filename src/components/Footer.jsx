@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { 
   MapPin, Phone, Clock, Mail, 
-  Facebook, Instagram, Twitter, ChevronLeft 
+  Facebook, Instagram, ChevronLeft 
 } from 'lucide-react';
 
 export default function Footer() {
@@ -16,7 +16,7 @@ export default function Footer() {
           {/* 1. قسم النبذة والشعار */}
           <div className="space-y-6">
             
-            {/* الشعار الجديد المضاف */}
+            {/* الشعار */}
             <Link to="/" className="inline-block mb-2">
                 <img 
                     src="https://jwmcjqsdsibflzsaqeek.supabase.co/storage/v1/object/public/Brand/3d77322e-f0f1-4fe5-b801-1f8709f3148f.png" 
@@ -31,14 +31,11 @@ export default function Footer() {
 
             {/* أيقونات التواصل الاجتماعي */}
             <div className="flex items-center gap-3 pt-2">
-              <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all duration-300 transform hover:-translate-y-1">
+              <a href="https://www.facebook.com/almadenahcenter/" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all duration-300 transform hover:-translate-y-1">
                 <Facebook size={18} />
               </a>
-              <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-pink-600 hover:text-white transition-all duration-300 transform hover:-translate-y-1">
+              <a href="https://www.instagram.com/almadina_mcenter?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-pink-600 hover:text-white transition-all duration-300 transform hover:-translate-y-1">
                 <Instagram size={18} />
-              </a>
-              <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-sky-500 hover:text-white transition-all duration-300 transform hover:-translate-y-1">
-                <Twitter size={18} />
               </a>
             </div>
           </div>
