@@ -1,0 +1,227 @@
+---
+title: Almadeinah Medical Platform — Project Constitution
+version: 1.1.0
+date: 2026-03-08
+status: ACTIVE — Phase 6 in progress
+---
+
+# PROJECT CONSTITUTION: gemini.mmd
+## Almadeinah Medical Platform — Architectural Rules & Principles
+
+> This file is the single source of truth for all architectural decisions.
+> Every contributor (human or AI agent) MUST follow these rules without exception.
+> Any deviation requires a formal update to this file first.
+
+---
+
+## RULE 1 — Strict Separation of Concerns
+
+The codebase is divided into five distinct layers. Each layer has a single responsibility and may only communicate with the layers described below it.
+
+```mermaid
+graph TD
+    A["📄 Pages / Dashboards<br/>(src/pages/)"] --> B["🪝 Custom Hooks<br/>(src/hooks/)"]
+    B --> C["🌐 API Layer<br/>(src/api/)"]
+    C --> D["🔌 Supabase Client<br/>(src/lib/supabaseClient.js)"]
+    A --> E["🧩 UI Components<br/>(src/components/)"]
+    B --> F["🗃️ Global Store<br/>(src/store/)"]
+    E --> F
+```
+
+### Layer Mandates
+
+| Layer | Can Import From | CANNOT Import From |
+|---|---|---|
+| `pages/` | `hooks/`, `components/`, `store/`, `utils/` | `api/` directly, `lib/` directly |
+| `hooks/` | `api/`, `store/`, `utils/`, `lib/` | `components/`, `pages/` |
+| `api/` | `lib/`, `utils/` | `hooks/`, `store/`, `components/`, `pages/` |
+| `components/` | `store/`, `utils/` | `api/`, `hooks/` (use props/callbacks instead) |
+| `store/` | `utils/` | Everything else |
+
+> **Enforcement**: ESLint import-boundary rules will be configured to flag violations automatically.
+
+---
+
+## RULE 2 — Supabase Client is a Singleton
+
+- There is exactly ONE Supabase client instance: `src/lib/supabaseClient.js`.
+- Direct imports of `supabaseClient` are **only allowed** in `src/api/` and `src/lib/`.
+- Pages, hooks, and components **must NEVER** call `supabase.from()` directly.
+- All Supabase interactions are mediated through `src/api/` functions.
+
+```
+✅ CORRECT:  import { createAppointment } from '../api/appointments';
+❌ FORBIDDEN: import { supabase } from '../lib/supabaseClient';  // in a page/component
+```
+
+---
+
+## RULE 3 — Supabase Role-Based Access Control (RBAC)
+
+### User Roles
+The platform supports exactly two application roles stored in the `profiles` table:
+
+| Role | Access Level | Dashboard Route |
+|---|---|---|
+| `patient` | Own data only (appointments, profile, payments) | `/dashboard/patient/*` |
+| `admin` | All data + management operations | `/dashboard/admin/*` |
+
+### Frontend Enforcement
+- A `ProtectedRoute` component wraps all dashboard routes.
+- It checks `useAuthStore` for the authenticated user's role.
+- Unauthorized access redirects to `/unauthorized`, not a silent failure.
+
+### Backend Enforcement (Supabase RLS)
+Row Level Security MUST be enabled on every table containing user data. Anonymous/unauthenticated access is allowed only on publicly advertised tables (`doctors`, `clinics`, `services`).
+
+> [!CAUTION]
+> **Supabase RLS Role Syntax — MANDATORY**
+>
+> Always specify `TO anon, authenticated` (or `TO authenticated`) explicitly in every policy.
+> Omitting the role defaults to the PostgreSQL `public` role, which is **NOT** the same as
+> Supabase's `anon` or `authenticated` roles. This silently returns empty data to the browser.
+>
+> ```sql
+> -- ❌ WRONG — defaults to {public} role, data will be empty in browser
+> CREATE POLICY "..." ON doctors FOR SELECT USING (true);
+>
+> -- ✅ CORRECT — explicitly targets Supabase application roles
+> CREATE POLICY "..." ON doctors FOR SELECT TO anon, authenticated USING (true);
+> ```
+
+
+
+**RLS Policy Matrix (as deployed — 2026-03-08):**
+
+| Table | Anonymous | Patient (own) | Admin (all) |
+|---|---|---|---|
+| `doctors` | ✅ READ | ✅ READ | ✅ FULL |
+| `clinics` | ✅ READ | ✅ READ | ✅ FULL |
+| `clinic_services` | ✅ READ | ✅ READ | ✅ FULL |
+| `scans` | ✅ READ | ✅ READ | ✅ FULL |
+| `examinations` | ✅ READ | ✅ READ | ✅ FULL |
+| `equipments` | ✅ READ | ✅ READ | ✅ FULL |
+| `blogs` | ✅ READ | ✅ READ | ✅ FULL |
+| `lab_tests_list` | ✅ READ | ✅ READ | ✔️ READ |
+| `medical_packages` | ✅ READ | ✅ READ | ✅ FULL |
+| `medical_tests_guide` | ✅ READ | ✅ READ | ✅ FULL |
+| `appointments` | ❌ BLOCKED | ✅ OWN rows only | ✅ FULL |
+| `profiles` | ❌ BLOCKED | ✅ OWN row only | ✅ FULL |
+| `gastrointestinal...`| ✅ READ | ✅ READ | ✔️ READ |
+
+> **Rule**: Any new table added to the schema MUST have RLS enabled and policies defined before being used in production.
+
+---
+
+## RULE 4 — Payment API Security (CRITICAL)
+
+```
+🔴 ABSOLUTE RULE: Payment gateway secret keys MUST NEVER appear
+   in any frontend file or any VITE_* environment variable.
+   Doing so exposes the secret in the browser's JavaScript bundle.
+```
+
+### Approved Payment Architecture
+
+```mermaid
+sequenceDiagram
+    participant Browser as 🌐 Browser (React)
+    participant EdgeFn as ⚡ Supabase Edge Function
+    participant Gateway as 💳 Payment Gateway API
+
+    Browser->>EdgeFn: supabase.functions.invoke('process-payment', payload)
+    Note over EdgeFn: Secret API key lives HERE (Supabase secret env)
+    EdgeFn->>Gateway: POST /charges (with secret key)
+    Gateway-->>EdgeFn: { status, transactionId }
+    EdgeFn-->>Browser: { success: true, transactionId }
+```
+
+- **Frontend** (`src/api/payments/index.js`): Only calls `supabase.functions.invoke()` with public, non-sensitive data (amount, currency, booking ID).
+- **Edge Function** (`supabase/functions/process-payment/index.ts`): Holds the secret key via `Deno.env.get('PAYMENT_SECRET_KEY')`.
+- **Secret Storage**: Keys are set via `supabase secrets set PAYMENT_SECRET_KEY=...` CLI, never in `.env` files tracked by git.
+
+---
+
+## RULE 5 — Mobile-Readiness by Design
+
+This frontend will eventually have a React Native companion app. All business logic must be portable:
+
+- **Hooks are the API contract** between UI and data. The React Native app will re-use hooks logic.
+- Components must accept data via **props only** (no fetching inside leaf components).
+- Avoid web-specific APIs (`window`, `document`, `localStorage`) inside hooks. Use abstractions.
+
+---
+
+## RULE 6 — Internationalization (i18n)
+
+- All user-facing strings must be externalised (no hardcoded Arabic/English).
+- RTL layout is default; LTR must be an opt-in toggle.
+- Date/time formatting must use Arabic locale helpers from `src/utils/dateFormatter.js`.
+
+---
+
+## RULE 7 — No Secret Data in Version Control
+
+The `.gitignore` must always include:
+- `.env` (Supabase URL + anon key)
+- `.env.local`, `.env.production`
+- Any file matching `*.secret.*`
+
+The `VITE_SUPABASE_ANON_KEY` is a **publishable** key and is safe to expose. All other keys are **secret** and must never be prefixed with `VITE_`.
+
+---
+
+## RULE 8 — Advanced Security & Penetration Prevention
+
+> This rule formalises Phase 7 of the task plan. All four requirements below are **non-negotiable** before any production deployment.
+
+### 8a — Input Validation & XSS Prevention
+
+```
+🔴 ZERO TOLERANCE: No user-supplied string may be inserted into the DOM
+   or sent to the database without passing validation and sanitization first.
+```
+
+- **Validation**: All form input must pass a function from `src/utils/validators.js` before the API call is made. Hook-level guards are the minimum; server-side (Supabase check constraints) are preferred for critical fields.
+- **Sanitization**: Free-text fields (names, addresses, notes) must be stripped of HTML before submission using `src/utils/sanitizer.js` (DOMPurify wrapper).
+- **`dangerouslySetInnerHTML` ban**: This React prop is FORBIDDEN unless the content has passed through `DOMPurify.sanitize()` and the usage is explicitly documented.
+- **URL/Route param validation**: Every `useParams()` value used in a Supabase query MUST be validated as a non-negative integer (or appropriate type) before use.
+
+### 8b — Rate Limiting Rules
+
+| Endpoint / Function | Limit | Window |
+|---|---|---|
+| `process-payment` Edge Function | 5 requests | per IP per 10 minutes |
+| Auth sign-in / OTP Edge Functions | 10 attempts | per IP per hour |
+| Public API (Supabase PostgREST) | Default Supabase limits apply | — |
+
+- Implementation: **Upstash Redis** (`@upstash/ratelimit`) or Deno KV inside Edge Functions.
+- On limit breach: return HTTP `429 Too Many Requests` with `Retry-After` header.
+
+### 8c — Required Security Headers
+
+All production responses must include:
+
+| Header | Value |
+|---|---|
+| `Content-Security-Policy` | `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' fonts.googleapis.com; font-src fonts.gstatic.com; img-src 'self' data: *.supabase.co; connect-src 'self' *.supabase.co` |
+| `X-Content-Type-Options` | `nosniff` |
+| `X-Frame-Options` | `DENY` |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` |
+| `Permissions-Policy` | `camera=(), microphone=(), geolocation=()` |
+| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` |
+
+### 8d — Pre-Deployment Security Audit (mandatory gate)
+
+No code may be merged to `main` / deployed to production until **all** of the following pass:
+
+```
+[ ] npm audit — zero HIGH or CRITICAL vulnerabilities
+[ ] grep -r 'VITE_' src/ — no secret keys with VITE_ prefix
+[ ] npm run build && grep -r 'sk_live|secret' dist/ — returns empty
+[ ] RLS patient isolation test — patient query returns only own rows
+[ ] Admin lockout test — patient role cannot reach /dashboard/admin
+[ ] XSS probe — <script>alert(1)</script> in name field is stripped
+[ ] Supabase security advisor — zero WARN or ERROR advisories
+[ ] HTTPS enforced — no HTTP fallback in production
+```

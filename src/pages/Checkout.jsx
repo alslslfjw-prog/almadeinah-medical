@@ -1,30 +1,32 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
-import { 
-  Calendar, Clock, User, Phone, CheckCircle, ArrowRight, MapPin, 
-  CreditCard, Building2, UserCircle, CalendarDays 
+import {
+  Calendar, Clock, User, Phone, CheckCircle, ArrowRight, MapPin,
+  CreditCard, Building2, UserCircle, LogIn
 } from 'lucide-react';
+import { useAppointments } from '../hooks/useAppointments';
+import useAuthStore from '../store/authStore';
 
 export default function Checkout() {
   const location = useLocation();
   const navigate = useNavigate();
   const bookingData = location.state;
 
-  // Updated state: Added 'birthDate' and 'gender'
-  const [formData, setFormData] = useState({ 
-    name: '', 
-    birthDate: '', 
-    gender: '',
-    phone: '', 
-    address: '', 
-    paymentMethod: 'center' 
-  });
-  
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+  // ✅ Pull authenticated user from Zustand — no inline supabase calls
+  const { user, isAuthenticated } = useAuthStore();
+  const { createAppointment, isLoading: loading } = useAppointments();
 
-  // Redirect if accessed directly without data
+  const [bookingSuccess, setBookingSuccess] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    birthDate: '',
+    gender: '',
+    phone: '',
+    address: '',
+    paymentMethod: 'center'
+  });
+
+  // Redirect if accessed directly without booking data
   useEffect(() => {
     if (!bookingData) {
       const timer = setTimeout(() => navigate('/'), 3000);
@@ -43,38 +45,35 @@ export default function Checkout() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
 
-    try {
-      const { error } = await supabase
-        .from('appointments')
-        .insert([
-          {
-            patient_name: formData.name,
-            patient_phone: formData.phone,
-            // Ensure you add these columns to your Supabase 'appointments' table:
-            // patient_dob: formData.birthDate,
-            // patient_gender: formData.gender,
-            // patient_address: formData.address,
-            // payment_method: formData.paymentMethod,
-            type: bookingData.type,
-            service_name: bookingData.doctor ? bookingData.doctor.name : bookingData.primarySelection,
-            appointment_date: bookingData.date,
-            appointment_time: bookingData.time,
-            status: 'pending'
-          }
-        ]);
+    // Resolve doctor_id and service_name from booking context
+    const doctorId = bookingData.doctor?.id ?? null;
+    const scanId = bookingData.type === 'scans' ? (bookingData.scanId ?? null) : null;
+    const serviceName = bookingData.doctor?.name ?? bookingData.primarySelection ?? null;
 
-      if (error) throw error;
-      setSuccess(true);
-    } catch (error) {
-      alert('حدث خطأ أثناء الحجز: ' + error.message);
-    } finally {
-      setLoading(false);
+    // ✅ Only insert columns that exist in the appointments table (verified from DB schema)
+    const { success: ok, error } = await createAppointment({
+      patient_name: formData.name,
+      phone_number: formData.phone,
+      appointment_date: bookingData.date || null,
+      appointment_time: bookingData.time || null,
+      doctor_id: doctorId,
+      scan_id: scanId,
+      status: 'pending',
+      patient_user_id: user?.id ?? null,   // ← links booking to logged-in patient for RLS
+      service_name: serviceName,        // human-readable label for non-doctor bookings
+      type: bookingData.type ?? null,
+    });
+
+    if (ok) {
+      setBookingSuccess(true);
+    } else if (error) {
+      alert('حدث خطأ أثناء الحجز: ' + (error.message ?? JSON.stringify(error)));
     }
   };
 
-  if (success) {
+  // ── Success Screen ───────────────────────────────────────────────────────────
+  if (bookingSuccess) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4" dir="rtl">
         <div className="bg-white rounded-3xl shadow-xl p-8 max-w-md w-full text-center">
@@ -82,8 +81,18 @@ export default function Checkout() {
             <CheckCircle size={40} />
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">تم الحجز بنجاح!</h2>
-          <p className="text-gray-500 mb-8">شكراً لك {formData.name}، سيتم التواصل معك قريباً لتأكيد الموعد.</p>
-          <button 
+          <p className="text-gray-500 mb-4">
+            شكراً لك <strong>{formData.name}</strong>، سيتم التواصل معك قريباً لتأكيد الموعد.
+          </p>
+          {isAuthenticated && (
+            <p className="text-sm text-teal-600 mb-6">
+              يمكنك متابعة موعدك من{' '}
+              <button onClick={() => navigate('/dashboard/patient')} className="font-bold underline">
+                لوحة المريض
+              </button>
+            </p>
+          )}
+          <button
             onClick={() => navigate('/')}
             className="w-full bg-teal-600 text-white font-bold py-3 rounded-xl hover:bg-teal-700 transition"
           >
@@ -94,10 +103,11 @@ export default function Checkout() {
     );
   }
 
+  // ── Checkout Form ────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 font-sans" dir="rtl">
       <div className="container mx-auto max-w-5xl">
-        
+
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
           <button onClick={() => navigate(-1)} className="bg-white p-2 rounded-full shadow-sm hover:bg-gray-100 transition">
@@ -106,13 +116,35 @@ export default function Checkout() {
           <h1 className="text-2xl md:text-3xl font-bold text-gray-800">تأكيد الحجز</h1>
         </div>
 
+        {/* Logged-in banner */}
+        {isAuthenticated && (
+          <div className="bg-teal-50 border border-teal-200 rounded-xl px-4 py-3 mb-6 flex items-center gap-3 text-sm text-teal-800">
+            <CheckCircle size={18} className="text-teal-500 shrink-0" />
+            <span>أنت مسجّل الدخول — سيُربط هذا الحجز تلقائياً بحسابك.</span>
+          </div>
+        )}
+
+        {/* Not logged-in note */}
+        {!isAuthenticated && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-6 flex items-center gap-3 text-sm text-blue-800">
+            <LogIn size={18} className="text-blue-500 shrink-0" />
+            <span>
+              يمكنك الحجز كزائر، أو{' '}
+              <button onClick={() => navigate('/login', { state: { from: location.pathname } })} className="font-bold underline hover:text-blue-600">
+                تسجيل الدخول
+              </button>
+              {' '}لمتابعة مواعيدك لاحقاً.
+            </span>
+          </div>
+        )}
+
         <div className="grid md:grid-cols-12 gap-8">
-          
-          {/* 1. Booking Summary Card (Right Side) */}
+
+          {/* ── Booking Summary Card ───────────────────────────────────── */}
           <div className="md:col-span-4 order-1 md:order-2">
             <div className="bg-white rounded-[2rem] shadow-lg p-6 border border-gray-100 sticky top-24">
               <h3 className="text-lg font-bold text-gray-800 mb-6 border-b border-gray-100 pb-4">تفاصيل الموعد</h3>
-              
+
               <div className="space-y-6">
                 {/* Service / Doctor */}
                 <div className="flex items-start gap-4">
@@ -135,19 +167,22 @@ export default function Checkout() {
                 </div>
 
                 {/* Date & Time */}
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center flex-shrink-0">
-                    <Calendar size={24} />
+                {(bookingData.date || bookingData.time) && (
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center flex-shrink-0">
+                      <Calendar size={24} />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500 mb-1">الموعد والتوقيت</p>
+                      {bookingData.date && <p className="font-bold text-gray-800">{bookingData.date}</p>}
+                      {bookingData.time && (
+                        <p className="text-teal-600 font-bold text-sm mt-1 flex items-center gap-1">
+                          <Clock size={14} /> {bookingData.time}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">الموعد والتوقيت</p>
-                    <p className="font-bold text-gray-800">{bookingData.date}</p>
-                    <p className="text-teal-600 font-bold text-sm mt-1 flex items-center gap-1">
-                      <Clock size={14} />
-                      {bookingData.time}
-                    </p>
-                  </div>
-                </div>
+                )}
 
                 {/* Location */}
                 <div className="flex items-start gap-4">
@@ -171,168 +206,150 @@ export default function Checkout() {
             </div>
           </div>
 
-          {/* 2. Patient Form (Left Side) */}
+          {/* ── Patient Form ───────────────────────────────────────────── */}
           <div className="md:col-span-8 order-2 md:order-1">
             <div className="bg-white rounded-[2rem] shadow-lg p-6 md:p-8 border border-gray-100">
               <h3 className="text-xl font-bold text-gray-800 mb-2">بيانات المريض</h3>
               <p className="text-gray-500 mb-8 text-sm">يرجى ملء البيانات لتأكيد الحجز.</p>
 
               <form onSubmit={handleSubmit} className="space-y-6">
-                
-                {/* Name Field */}
+
+                {/* Full Name */}
                 <div>
-                    <label className="block text-gray-700 font-bold mb-2 text-sm">الاسم الثلاثي</label>
-                    <div className="relative">
-                        <input 
-                        required
-                        type="text"
-                        placeholder="أدخل الاسم بالكامل"
-                        value={formData.name}
-                        onChange={(e) => setFormData({...formData, name: e.target.value})}
-                        className="w-full bg-gray-50 border border-gray-200 text-gray-800 py-3.5 px-4 pr-12 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition"
-                        />
-                        <User className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                    </div>
+                  <label className="block text-gray-700 font-bold mb-2 text-sm">الاسم الثلاثي</label>
+                  <div className="relative">
+                    <input
+                      required
+                      type="text"
+                      placeholder="أدخل الاسم بالكامل"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full bg-gray-50 border border-gray-200 text-gray-800 py-3.5 px-4 pr-12 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition"
+                    />
+                    <User className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                  </div>
                 </div>
 
-                {/* --- NEW: Gender & Birth Date --- */}
+                {/* Gender & Date of Birth */}
                 <div className="grid md:grid-cols-2 gap-6">
-                    
-                    {/* Gender */}
-                    <div>
-                        <label className="block text-gray-700 font-bold mb-2 text-sm">الجنس</label>
-                        <div className="relative">
-                            <select 
-                                required
-                                value={formData.gender}
-                                onChange={(e) => setFormData({...formData, gender: e.target.value})}
-                                className="w-full bg-gray-50 border border-gray-200 text-gray-800 py-3.5 px-4 pr-12 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white appearance-none transition cursor-pointer"
-                            >
-                                <option value="">اختر الجنس...</option>
-                                <option value="male">ذكر</option>
-                                <option value="female">أنثى</option>
-                            </select>
-                            <UserCircle className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                        </div>
+                  <div>
+                    <label className="block text-gray-700 font-bold mb-2 text-sm">الجنس</label>
+                    <div className="relative">
+                      <select
+                        required
+                        value={formData.gender}
+                        onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-200 text-gray-800 py-3.5 px-4 pr-12 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 appearance-none transition cursor-pointer"
+                      >
+                        <option value="">اختر الجنس...</option>
+                        <option value="male">ذكر</option>
+                        <option value="female">أنثى</option>
+                      </select>
+                      <UserCircle className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                     </div>
+                  </div>
 
-                    {/* Date of Birth */}
-                    <div>
-                        <label className="block text-gray-700 font-bold mb-2 text-sm">تاريخ الميلاد</label>
-                        <div className="relative">
-                            <input 
-                                required
-                                type="date"
-                                max={new Date().toISOString().split("T")[0]} // Disable future dates
-                                value={formData.birthDate}
-                                onChange={(e) => setFormData({...formData, birthDate: e.target.value})}
-                                className="w-full bg-gray-50 border border-gray-200 text-gray-800 py-3.5 px-4 pr-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition"
-                            />
-                        </div>
-                    </div>
+                  <div>
+                    <label className="block text-gray-700 font-bold mb-2 text-sm">تاريخ الميلاد</label>
+                    <input
+                      required
+                      type="date"
+                      max={new Date().toISOString().split('T')[0]}
+                      value={formData.birthDate}
+                      onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
+                      className="w-full bg-gray-50 border border-gray-200 text-gray-800 py-3.5 px-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 transition"
+                    />
+                  </div>
                 </div>
 
                 {/* Phone & Address */}
                 <div className="grid md:grid-cols-2 gap-6">
-                    
-                    {/* Phone */}
-                    <div>
-                        <label className="block text-gray-700 font-bold mb-2 text-sm">رقم الهاتف (واتساب)</label>
-                        <div className="relative">
-                            <input 
-                            required
-                            type="tel"
-                            placeholder="77xxxxxxx"
-                            value={formData.phone}
-                            onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                            className="w-full bg-gray-50 border border-gray-200 text-gray-800 py-3.5 px-4 pr-12 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition"
-                            />
-                            <Phone className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                        </div>
+                  <div>
+                    <label className="block text-gray-700 font-bold mb-2 text-sm">رقم الهاتف (واتساب)</label>
+                    <div className="relative">
+                      <input
+                        required
+                        type="tel"
+                        placeholder="77xxxxxxx"
+                        value={formData.phone}
+                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-200 text-gray-800 py-3.5 px-4 pr-12 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 transition"
+                      />
+                      <Phone className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                     </div>
+                  </div>
 
-                    {/* Address */}
-                    <div>
-                        <label className="block text-gray-700 font-bold mb-2 text-sm">عنوان السكن</label>
-                        <div className="relative">
-                            <input 
-                                required
-                                type="text"
-                                placeholder="المدينة - الحي"
-                                value={formData.address}
-                                onChange={(e) => setFormData({...formData, address: e.target.value})}
-                                className="w-full bg-gray-50 border border-gray-200 text-gray-800 py-3.5 px-4 pr-12 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition"
-                            />
-                            <MapPin className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                        </div>
+                  <div>
+                    <label className="block text-gray-700 font-bold mb-2 text-sm">عنوان السكن</label>
+                    <div className="relative">
+                      <input
+                        required
+                        type="text"
+                        placeholder="المدينة - الحي"
+                        value={formData.address}
+                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-200 text-gray-800 py-3.5 px-4 pr-12 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 transition"
+                      />
+                      <MapPin className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                     </div>
+                  </div>
                 </div>
 
-                {/* Payment Method Section */}
+                {/* Payment Method */}
                 <div>
-                    <label className="block text-gray-700 font-bold mb-3 text-sm">طريقة الدفع</label>
-                    <div className="grid md:grid-cols-2 gap-4">
-                        
-                        {/* Option 1: Pay in Center */}
-                        <div 
-                            onClick={() => setFormData({...formData, paymentMethod: 'center'})}
-                            className={`cursor-pointer rounded-xl border-2 p-4 flex items-center gap-4 transition-all duration-300 ${
-                                formData.paymentMethod === 'center' 
-                                ? 'border-teal-500 bg-teal-50' 
-                                : 'border-gray-100 hover:border-teal-200'
-                            }`}
-                        >
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                                formData.paymentMethod === 'center' ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-500'
-                            }`}>
-                                <Building2 size={20} />
-                            </div>
-                            <div>
-                                <p className={`font-bold ${formData.paymentMethod === 'center' ? 'text-teal-900' : 'text-gray-700'}`}>الدفع في المركز</p>
-                                <p className="text-xs text-gray-500">الدفع نقداً عند الحضور للموعد</p>
-                            </div>
-                            {formData.paymentMethod === 'center' && <CheckCircle size={20} className="mr-auto text-teal-500" />}
-                        </div>
+                  <label className="block text-gray-700 font-bold mb-3 text-sm">طريقة الدفع</label>
+                  <div className="grid md:grid-cols-2 gap-4">
 
-                        {/* Option 2: Al-Qutaibi Bank */}
-                        <div 
-                            onClick={() => setFormData({...formData, paymentMethod: 'alqutaibi'})}
-                            className={`cursor-pointer rounded-xl border-2 p-4 flex items-center gap-4 transition-all duration-300 ${
-                                formData.paymentMethod === 'alqutaibi' 
-                                ? 'border-teal-500 bg-teal-50' 
-                                : 'border-gray-100 hover:border-teal-200'
-                            }`}
-                        >
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                                formData.paymentMethod === 'alqutaibi' ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-500'
-                            }`}>
-                                <CreditCard size={20} />
-                            </div>
-                            <div>
-                                <p className={`font-bold ${formData.paymentMethod === 'alqutaibi' ? 'text-teal-900' : 'text-gray-700'}`}>بنك القطيبي</p>
-                                <p className="text-xs text-gray-500">تحويل بنكي مباشر</p>
-                            </div>
-                            {formData.paymentMethod === 'alqutaibi' && <CheckCircle size={20} className="mr-auto text-teal-500" />}
-                        </div>
-
+                    <div
+                      onClick={() => setFormData({ ...formData, paymentMethod: 'center' })}
+                      className={`cursor-pointer rounded-xl border-2 p-4 flex items-center gap-4 transition-all duration-300 ${formData.paymentMethod === 'center' ? 'border-teal-500 bg-teal-50' : 'border-gray-100 hover:border-teal-200'
+                        }`}
+                    >
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${formData.paymentMethod === 'center' ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-500'
+                        }`}>
+                        <Building2 size={20} />
+                      </div>
+                      <div>
+                        <p className={`font-bold ${formData.paymentMethod === 'center' ? 'text-teal-900' : 'text-gray-700'}`}>الدفع في المركز</p>
+                        <p className="text-xs text-gray-500">الدفع نقداً عند الحضور للموعد</p>
+                      </div>
+                      {formData.paymentMethod === 'center' && <CheckCircle size={20} className="mr-auto text-teal-500" />}
                     </div>
-                    {/* Optional info message for Al-Qutaibi */}
-                    {formData.paymentMethod === 'alqutaibi' && (
-                        <div className="mt-3 p-3 bg-blue-50 text-blue-800 text-sm rounded-lg border border-blue-100">
-                            يرجى إرسال إشعار التحويل عبر الواتساب لتأكيد الحجز. رقم الحساب: <strong>123456</strong>
-                        </div>
-                    )}
+
+                    <div
+                      onClick={() => setFormData({ ...formData, paymentMethod: 'alqutaibi' })}
+                      className={`cursor-pointer rounded-xl border-2 p-4 flex items-center gap-4 transition-all duration-300 ${formData.paymentMethod === 'alqutaibi' ? 'border-teal-500 bg-teal-50' : 'border-gray-100 hover:border-teal-200'
+                        }`}
+                    >
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${formData.paymentMethod === 'alqutaibi' ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-500'
+                        }`}>
+                        <CreditCard size={20} />
+                      </div>
+                      <div>
+                        <p className={`font-bold ${formData.paymentMethod === 'alqutaibi' ? 'text-teal-900' : 'text-gray-700'}`}>بنك القطيبي</p>
+                        <p className="text-xs text-gray-500">تحويل بنكي مباشر</p>
+                      </div>
+                      {formData.paymentMethod === 'alqutaibi' && <CheckCircle size={20} className="mr-auto text-teal-500" />}
+                    </div>
+                  </div>
+
+                  {formData.paymentMethod === 'alqutaibi' && (
+                    <div className="mt-3 p-3 bg-blue-50 text-blue-800 text-sm rounded-lg border border-blue-100">
+                      يرجى إرسال إشعار التحويل عبر الواتساب لتأكيد الحجز. رقم الحساب: <strong>123456</strong>
+                    </div>
+                  )}
                 </div>
 
-                {/* Submit Button */}
-                <button 
+                {/* Submit */}
+                <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-gradient-to-r from-teal-500 to-blue-600 hover:from-teal-600 hover:to-blue-700 text-white font-bold py-4 rounded-xl shadow-lg transform hover:-translate-y-1 transition duration-300 disabled:opacity-70 disabled:cursor-not-allowed mt-4"
+                  className="w-full bg-gradient-to-r from-teal-500 to-blue-600 hover:from-teal-600 hover:to-blue-700 text-white font-bold py-4 rounded-xl shadow-lg transform hover:-translate-y-1 transition duration-300 disabled:opacity-70 disabled:cursor-not-allowed mt-4 flex items-center justify-center gap-2"
                 >
-                  {loading ? 'جاري التأكيد...' : 'تأكيد الحجز نهائياً'}
+                  {loading ? (
+                    <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> جارٍ التأكيد...</>
+                  ) : 'تأكيد الحجز نهائياً'}
                 </button>
-
               </form>
             </div>
           </div>
