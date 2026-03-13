@@ -1,21 +1,15 @@
 /**
  * @module api/doctors
- * @description All Supabase data operations for the `doctors` table.
- *
- * RULES:
- *  - Import ONLY from '../lib/supabaseClient' (singleton — never call createClient here)
- *  - NO auth calls (no getSession, no getUser). The client attaches the JWT automatically.
- *  - Every function is a plain async query wrapped in try/catch.
+ * @description All Supabase operations for the `doctors` table.
+ * Public reads + Admin writes. No auth calls — JWT attached automatically.
  */
 
 import { supabase } from '../lib/supabaseClient';
 
+const STORAGE_BUCKET = 'doctor-images';
+
 // ─── READ ────────────────────────────────────────────────────────────────────
 
-/**
- * Fetch all doctors, optionally joined with their clinic.
- * @param {{ withClinic?: boolean, clinicId?: number, category?: string }} [opts]
- */
 export async function getDoctors({ withClinic = true, clinicId, category } = {}) {
     try {
         let query = supabase
@@ -23,10 +17,8 @@ export async function getDoctors({ withClinic = true, clinicId, category } = {})
             .select(withClinic ? '*, clinics(id, name, color, icon_name)' : '*')
             .order('priority', { ascending: true })
             .order('home_page_order', { ascending: true });
-
         if (clinicId) query = query.eq('clinic_id', clinicId);
         if (category)  query = query.eq('category', category);
-
         const { data, error } = await query;
         return { data, error };
     } catch (err) {
@@ -35,10 +27,6 @@ export async function getDoctors({ withClinic = true, clinicId, category } = {})
     }
 }
 
-/**
- * Fetch a single doctor by ID, joined with clinic.
- * @param {number|string} id
- */
 export async function getDoctorById(id) {
     try {
         const { data, error } = await supabase
@@ -48,15 +36,10 @@ export async function getDoctorById(id) {
             .single();
         return { data, error };
     } catch (err) {
-        console.error('[api/doctors] getDoctorById threw:', err);
         return { data: null, error: err };
     }
 }
 
-/**
- * Fetch featured doctors for the homepage widget.
- * @param {number} [limit=6]
- */
 export async function getFeaturedDoctors(limit = 6) {
     try {
         const { data, error } = await supabase
@@ -67,7 +50,6 @@ export async function getFeaturedDoctors(limit = 6) {
             .limit(limit);
         return { data, error };
     } catch (err) {
-        console.error('[api/doctors] getFeaturedDoctors threw:', err);
         return { data: null, error: err };
     }
 }
@@ -75,9 +57,26 @@ export async function getFeaturedDoctors(limit = 6) {
 // ─── ADMIN WRITE ─────────────────────────────────────────────────────────────
 
 /**
- * Update a doctor record (admin-only).
+ * Create a new doctor record.
+ * @param {object} payload — all doctor fields (image_url must be set before calling)
+ */
+export async function createDoctor(payload) {
+    try {
+        const { data, error } = await supabase
+            .from('doctors')
+            .insert([payload])
+            .select()
+            .single();
+        return { data, error };
+    } catch (err) {
+        return { data: null, error: err };
+    }
+}
+
+/**
+ * Update a doctor record.
  * @param {number} id
- * @param {Partial<object>} updates
+ * @param {object} updates
  */
 export async function updateDoctor(id, updates) {
     try {
@@ -89,7 +88,51 @@ export async function updateDoctor(id, updates) {
             .single();
         return { data, error };
     } catch (err) {
-        console.error('[api/doctors] updateDoctor threw:', err);
         return { data: null, error: err };
+    }
+}
+
+/**
+ * Delete a doctor record.
+ * @param {number} id
+ */
+export async function deleteDoctor(id) {
+    try {
+        const { error } = await supabase
+            .from('doctors')
+            .delete()
+            .eq('id', id);
+        return { error };
+    } catch (err) {
+        return { error: err };
+    }
+}
+
+// ─── STORAGE ─────────────────────────────────────────────────────────────────
+
+/**
+ * Upload a doctor photo to Supabase Storage.
+ * Returns the public URL of the uploaded file.
+ * @param {File} file
+ * @returns {Promise<{ url: string|null, error: object|null }>}
+ */
+export async function uploadDoctorImage(file) {
+    try {
+        const ext      = file.name.split('.').pop();
+        const filename = `doctor-${Date.now()}.${ext}`;
+
+        const { error: uploadError } = await supabase.storage
+            .from(STORAGE_BUCKET)
+            .upload(filename, file, { upsert: true, contentType: file.type });
+
+        if (uploadError) return { url: null, error: uploadError };
+
+        const { data } = supabase.storage
+            .from(STORAGE_BUCKET)
+            .getPublicUrl(filename);
+
+        return { url: data.publicUrl, error: null };
+    } catch (err) {
+        return { url: null, error: err };
     }
 }

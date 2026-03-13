@@ -32,6 +32,8 @@ import Register from './pages/Register';
 import PatientLayout from './pages/dashboards/patient/PatientLayout';
 import AdminLayout from './pages/dashboards/admin/AdminLayout';
 import BlogCMS from './pages/dashboards/admin/BlogCMS';
+import DoctorsAdmin from './pages/dashboards/admin/DoctorsAdmin';
+import ClinicsAdmin from './pages/dashboards/admin/ClinicsAdmin';
 
 /**
  * AuthInitializer — registers the Supabase auth listener EXACTLY ONCE,
@@ -125,10 +127,10 @@ function App() {
           <Route path="appointments" element={<AdminStub title="المواعيد" />} />
           <Route path="finance"      element={<AdminStub title="المالية" />} />
           <Route path="cms/blog"     element={<BlogCMS />} />
-          <Route path="cms/clinics"  element={<AdminStub title="إدارة العيادات" />} />
+          <Route path="cms/clinics"  element={<ClinicsAdmin />} />
           <Route path="cms/labs"     element={<AdminStub title="إدارة الفحوصات" />} />
           <Route path="cms/packages" element={<AdminStub title="إدارة الباقات" />} />
-          <Route path="doctors"      element={<AdminStub title="إدارة الأطباء" />} />
+          <Route path="doctors"      element={<DoctorsAdmin />} />
           <Route path="users"        element={<AdminStub title="إدارة المستخدمين" />} />
           <Route path="gateways"     element={<AdminStub title="بوابات الدفع" />} />
         </Route>

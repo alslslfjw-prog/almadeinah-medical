@@ -175,7 +175,10 @@ export default function DoctorDetails() {
                                 نبذة عن الطبيب
                             </h2>
                             <p className="text-gray-600 leading-relaxed text-lg">
-                                {doctor.title}. يتميز بخبرة واسعة في مجال {doctor.category}، ويسعى دائماً لتقديم أفضل رعاية طبية للمرضى باستخدام أحدث التقنيات العلاجية.
+                                {doctor.bio && doctor.bio.trim()
+                                    ? doctor.bio
+                                    : `${doctor.title}. يتميز بخبرة واسعة في مجال ${doctor.category}، ويسعى دائماً لتقديم أفضل رعاية طبية للمرضى باستخدام أحدث التقنيات العلاجية.`
+                                }
                             </p>
                         </div>
 
@@ -185,25 +188,54 @@ export default function DoctorDetails() {
                                 <i className="far fa-clock text-teal-500"></i>
                                 مواعيد العمل
                             </h2>
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-3 text-gray-700">
-                                    <div className="w-2 h-2 bg-teal-500 rounded-full"></div>
-                                    <span className="font-bold w-20">الأيام:</span>
-                                    <span>{doctor.work_days}</span>
+
+                            {doctor.schedule && typeof doctor.schedule === 'object' && Object.keys(doctor.schedule).length > 0 ? (
+                                // ── Detailed per-day schedule from CMS JSONB ──────────────
+                                <div className="space-y-2">
+                                    {Object.entries(doctor.schedule).map(([day, time]) => (
+                                        <div
+                                            key={day}
+                                            className="flex items-center justify-between bg-gray-50 border border-gray-100 rounded-xl px-5 py-3 hover:border-teal-200 transition"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-2 h-2 bg-teal-500 rounded-full flex-shrink-0"></div>
+                                                <span className="font-bold text-gray-700 text-sm">{day}</span>
+                                            </div>
+                                            <span
+                                                className="bg-blue-50 text-blue-700 px-3 py-1 rounded-lg text-sm font-mono font-bold"
+                                                dir="ltr"
+                                            >
+                                                {time}
+                                            </span>
+                                        </div>
+                                    ))}
                                 </div>
-                                <div className="flex items-center gap-3 text-gray-700">
-                                    <div className="w-2 h-2 bg-teal-500 rounded-full"></div>
-                                    <span className="font-bold w-20">الفترة:</span>
-                                    <span>{doctor.shift}</span>
+                            ) : (
+                                // ── Fallback: generic الأيام / الفترة / الأوقات rows ─────
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-3 text-gray-700">
+                                        <div className="w-2 h-2 bg-teal-500 rounded-full"></div>
+                                        <span className="font-bold w-20">الأيام:</span>
+                                        <span>{doctor.work_days ?? '—'}</span>
+                                    </div>
+                                    <div className="flex items-center gap-3 text-gray-700">
+                                        <div className="w-2 h-2 bg-teal-500 rounded-full"></div>
+                                        <span className="font-bold w-20">الفترة:</span>
+                                        <span>{doctor.shift ?? '—'}</span>
+                                    </div>
+                                    <div className="flex items-center gap-3 text-gray-700">
+                                        <div className="w-2 h-2 bg-teal-500 rounded-full"></div>
+                                        <span className="font-bold w-20">الأوقات:</span>
+                                        <span
+                                            className="bg-blue-50 text-blue-700 px-3 py-1 rounded-lg text-sm font-bold"
+                                            dir="rtl"
+                                            style={{ unicodeBidi: 'plaintext' }}
+                                        >
+                                            {doctor.work_hours ?? '—'}
+                                        </span>
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-3 text-gray-700">
-                                    <div className="w-2 h-2 bg-teal-500 rounded-full"></div>
-                                    <span className="font-bold w-20">الأوقات:</span>
-                                    <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-lg text-sm font-bold" dir="ltr">
-                                        {doctor.work_hours}
-                                    </span>
-                                </div>
-                            </div>
+                            )}
                         </div>
 
                         {/* Qualifications */}
