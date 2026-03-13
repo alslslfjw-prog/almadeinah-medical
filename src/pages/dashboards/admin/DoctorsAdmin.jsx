@@ -53,6 +53,36 @@ const EMPTY_FORM = {
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+/**
+ * Convert a 24-hour time string ("HH:MM") to a 12-hour Arabic AM/PM string.
+ * e.g. "08:00" → "08:00 ص" | "16:00" → "04:00 م"
+ */
+function to12hArabic(time24) {
+    if (!time24) return '';
+    const [hStr, mStr] = time24.split(':');
+    const h = parseInt(hStr, 10);
+    const m = parseInt(mStr, 10);
+    const period = h < 12 ? 'ص' : 'م';
+    const h12    = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    return `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${period}`;
+}
+
+/**
+ * Parse a stored time-range string back into {start, end} for the time inputs.
+ * Handles both raw "08:00-16:00" and formatted "08:00 ص - 04:00 م" gracefully.
+ */
+function splitTimeRange(rangeStr) {
+    if (!rangeStr) return { start: '08:00', end: '16:00' };
+    // Raw format: "08:00-16:00"
+    const rawMatch = rangeStr.match(/(\d{2}:\d{2})-(\d{2}:\d{2})/);
+    if (rawMatch) return { start: rawMatch[1], end: rawMatch[2] };
+    // Already formatted — try to extract HH:MM portions
+    const parts = rangeStr.match(/(\d{2}:\d{2})/g);
+    if (parts?.length >= 2) return { start: parts[0], end: parts[1] };
+    return { start: '08:00', end: '16:00' };
+}
+
 function AvailBadge({ status }) {
     const opt = AVAILABILITY_OPTIONS.find(o => o.value === status) ?? AVAILABILITY_OPTIONS[1];
     return (
@@ -163,12 +193,18 @@ export default function DoctorsAdmin() {
         if (sched[day] !== undefined) {
             delete sched[day];
         } else {
-            sched[day] = '08:00-16:00';
+            // Default: 08:00 AM → 04:00 PM (formatted)
+            sched[day] = `${to12hArabic('08:00')} - ${to12hArabic('16:00')}`;
         }
         setField('schedule', sched);
     };
-    const setDayTime = (day, value) =>
-        setField('schedule', { ...form.schedule, [day]: value });
+    // Accept start + end time strings, format and store
+    const setDayTime = (day, start, end) => {
+        setField('schedule', {
+            ...form.schedule,
+            [day]: `${to12hArabic(start)} - ${to12hArabic(end)}`,
+        });
+    };
 
     // ── Featured toggle ────────────────────────────────────────────────────────
     const handleFeatured = async (doc) => {
@@ -586,8 +622,11 @@ export default function DoctorsAdmin() {
                                 <div className="space-y-2 bg-slate-50 rounded-xl p-3 border border-slate-100">
                                     {DAYS.map(day => {
                                         const isOn = form.schedule[day] !== undefined;
+                                        // Parse stored string back to {start, end} for the native inputs
+                                        const { start, end } = isOn ? splitTimeRange(form.schedule[day]) : { start: '08:00', end: '16:00' };
                                         return (
-                                            <div key={day} className="flex items-center gap-3">
+                                            <div key={day} className="flex items-center gap-2">
+                                                {/* Day toggle */}
                                                 <button
                                                     onClick={() => toggleDay(day)}
                                                     className={`flex items-center gap-1.5 min-w-[90px] text-xs font-semibold transition ${isOn ? 'text-teal-700' : 'text-slate-400'}`}
@@ -598,15 +637,27 @@ export default function DoctorsAdmin() {
                                                     }
                                                     {day}
                                                 </button>
-                                                {isOn && (
-                                                    <input
-                                                        value={form.schedule[day]}
-                                                        onChange={e => setDayTime(day, e.target.value)}
-                                                        className="flex-1 border border-slate-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white font-mono"
-                                                        placeholder="08:00-16:00"
-                                                    />
+
+                                                {/* Dual time pickers */}
+                                                {isOn ? (
+                                                    <div className="flex items-center gap-1.5 flex-1">
+                                                        <input
+                                                            type="time"
+                                                            value={start}
+                                                            onChange={e => setDayTime(day, e.target.value, end)}
+                                                            className="flex-1 border border-slate-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white"
+                                                        />
+                                                        <span className="text-slate-400 text-xs font-bold flex-shrink-0">—</span>
+                                                        <input
+                                                            type="time"
+                                                            value={end}
+                                                            onChange={e => setDayTime(day, start, e.target.value)}
+                                                            className="flex-1 border border-slate-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white"
+                                                        />
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-xs text-slate-300">إجازة</span>
                                                 )}
-                                                {!isOn && <span className="text-xs text-slate-300">إجازة</span>}
                                             </div>
                                         );
                                     })}

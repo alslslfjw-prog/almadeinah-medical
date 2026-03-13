@@ -201,12 +201,9 @@ export default function DoctorDetails() {
                                                 <div className="w-2 h-2 bg-teal-500 rounded-full flex-shrink-0"></div>
                                                 <span className="font-bold text-gray-700 text-sm">{day}</span>
                                             </div>
-                                            <span
-                                                className="bg-blue-50 text-blue-700 px-3 py-1 rounded-lg text-sm font-mono font-bold"
-                                                dir="ltr"
-                                            >
+                                            <bdi className="bg-blue-50 text-blue-700 px-3 py-1 rounded-lg text-sm font-mono font-bold">
                                                 {time}
-                                            </span>
+                                            </bdi>
                                         </div>
                                     ))}
                                 </div>

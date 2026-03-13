@@ -139,3 +139,98 @@ export async function getMedicalTestsGuide({ category } = {}) {
     const { data, error } = await query;
     return { data, error };
 }
+
+// ─── ADMIN: SCANS WRITE ───────────────────────────────────────────────────────
+
+export async function createScan(payload) {
+    try {
+        const { data, error } = await supabase.from('scans').insert([payload]).select().single();
+        return { data, error };
+    } catch (err) { return { data: null, error: err }; }
+}
+
+export async function updateScan(id, updates) {
+    try {
+        const { data, error } = await supabase.from('scans').update(updates).eq('id', id).select().single();
+        return { data, error };
+    } catch (err) { return { data: null, error: err }; }
+}
+
+export async function deleteScan(id) {
+    try {
+        const { error } = await supabase.from('scans').delete().eq('id', id);
+        return { error };
+    } catch (err) { return { error: err }; }
+}
+
+export async function uploadScanImage(file) {
+    try {
+        const ext = file.name.split('.').pop();
+        const filename = `scan-${Date.now()}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+            .from('scan-images')
+            .upload(filename, file, { upsert: true, contentType: file.type });
+        if (uploadError) return { url: null, error: uploadError };
+        const { data } = supabase.storage.from('scan-images').getPublicUrl(filename);
+        return { url: data.publicUrl, error: null };
+    } catch (err) { return { url: null, error: err }; }
+}
+
+// ─── ADMIN: PACKAGES WRITE ────────────────────────────────────────────────────
+
+export async function createPackage(payload) {
+    try {
+        const { data, error } = await supabase.from('medical_packages').insert([payload]).select().single();
+        return { data, error };
+    } catch (err) { return { data: null, error: err }; }
+}
+
+export async function updatePackage(id, updates) {
+    try {
+        const { data, error } = await supabase.from('medical_packages').update(updates).eq('id', id).select().single();
+        return { data, error };
+    } catch (err) { return { data: null, error: err }; }
+}
+
+export async function deletePackage(id) {
+    try {
+        const { error } = await supabase.from('medical_packages').delete().eq('id', id);
+        return { error };
+    } catch (err) { return { error: err }; }
+}
+
+export async function uploadPackageImage(file) {
+    try {
+        const ext = file.name.split('.').pop();
+        const filename = `pkg-${Date.now()}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+            .from('package-images')
+            .upload(filename, file, { upsert: true, contentType: file.type });
+        if (uploadError) return { url: null, error: uploadError };
+        const { data } = supabase.storage.from('package-images').getPublicUrl(filename);
+        return { url: data.publicUrl, error: null };
+    } catch (err) { return { url: null, error: err }; }
+}
+
+// ─── ADMIN: MEDICAL TESTS GUIDE WRITE ────────────────────────────────────────
+
+export async function createTestGuide(payload) {
+    try {
+        const { data, error } = await supabase.from('medical_tests_guide').insert([payload]).select().single();
+        return { data, error };
+    } catch (err) { return { data: null, error: err }; }
+}
+
+export async function updateTestGuide(id, updates) {
+    try {
+        const { data, error } = await supabase.from('medical_tests_guide').update(updates).eq('id', id).select().single();
+        return { data, error };
+    } catch (err) { return { data: null, error: err }; }
+}
+
+export async function deleteTestGuide(id) {
+    try {
+        const { error } = await supabase.from('medical_tests_guide').delete().eq('id', id);
+        return { error };
+    } catch (err) { return { error: err }; }
+}

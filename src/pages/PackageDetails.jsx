@@ -6,10 +6,18 @@ import {
   TestTube, Calendar, Phone, Share2 
 } from 'lucide-react';
 
+// Fallback features if DB array is empty
+const FALLBACK_FEATURES = [
+  'نتائج دقيقة وسريعة',
+  'معاينة مجانية',
+  'متاح طوال أيام الأسبوع',
+];
+
 export default function PackageDetails() {
-  const { id } = useParams(); // جلب رقم الباقة من الرابط
+  const { id } = useParams();
   const [pkg, setPkg] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [booking, setBooking] = useState({ date: '', time: '' });
 
   useEffect(() => {
     const fetchPackageDetails = async () => {
@@ -141,16 +149,60 @@ export default function PackageDetails() {
             {/* Left Column: Sticky Booking Card */}
             <div className="lg:col-span-1">
                 <div className="bg-white rounded-3xl p-6 shadow-xl border border-gray-100 sticky top-24">
-                    <h3 className="text-xl font-bold text-gray-800 mb-6 text-center">احجز هذه الباقة</h3>
-                    
-                    <div className="space-y-4 mb-8">
-                        <div className="flex items-center gap-3 text-gray-600 bg-gray-50 p-3 rounded-xl">
-                            <Clock size={20} className="text-teal-500" />
-                            <span className="text-sm">نتائج سريعة ودقيقة</span>
+                    <h3 className="text-xl font-bold text-gray-800 mb-2 text-center">احجز هذه الباقة</h3>
+
+                    {/* ── Task 1: Price ─── */}
+                    {pkg.price && (
+                        <div className="text-center mb-5">
+                            <span className="text-3xl font-black text-teal-600">
+                                {Number(pkg.price).toLocaleString('ar-YE')}
+                            </span>
+                            <span className="text-base font-bold text-gray-500 mr-1">ر.ي</span>
+                            {pkg.discount_text && (
+                                <span className="block text-xs text-green-600 font-bold mt-0.5">{pkg.discount_text}</span>
+                            )}
                         </div>
-                        <div className="flex items-center gap-3 text-gray-600 bg-gray-50 p-3 rounded-xl">
-                            <Calendar size={20} className="text-teal-500" />
-                            <span className="text-sm">متاح طوال أيام الأسبوع</span>
+                    )}
+
+                    {/* ── Task 2: Dynamic features ─── */}
+                    <div className="space-y-2 mb-6">
+                        {(Array.isArray(pkg.features) && pkg.features.length > 0
+                            ? pkg.features
+                            : FALLBACK_FEATURES
+                        ).map((feat, i) => (
+                            <div key={i} className="flex items-center gap-3 text-gray-600 bg-gray-50 p-3 rounded-xl">
+                                <CheckCircle size={18} className="text-teal-500 shrink-0" />
+                                <span className="text-sm">{feat}</span>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* ── Task 3: Date + Time picker ─── */}
+                    <div className="space-y-3 mb-5">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 mb-1">اختر التاريخ</label>
+                            <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5">
+                                <Calendar size={17} className="text-teal-500 shrink-0" />
+                                <input
+                                    type="date"
+                                    value={booking.date}
+                                    min={new Date().toISOString().split('T')[0]}
+                                    onChange={e => setBooking(b => ({ ...b, date: e.target.value }))}
+                                    className="flex-1 bg-transparent text-sm text-gray-700 focus:outline-none"
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 mb-1">اختر الوقت</label>
+                            <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5">
+                                <Clock size={17} className="text-teal-500 shrink-0" />
+                                <input
+                                    type="time"
+                                    value={booking.time}
+                                    onChange={e => setBooking(b => ({ ...b, time: e.target.value }))}
+                                    className="flex-1 bg-transparent text-sm text-gray-700 focus:outline-none"
+                                />
+                            </div>
                         </div>
                     </div>
 
