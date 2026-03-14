@@ -113,3 +113,33 @@ export async function cancelAppointment(id) {
         .eq('id', id);
     return { error };
 }
+
+// ─── ADMIN WRITE ────────────────────────────────────────────────────────────────────
+
+/**
+ * Update any fields of an appointment (admin rescheduling / status override).
+ * @param {number} id
+ * @param {{ patient_name?: string, phone_number?: string, appointment_date?: string, appointment_time?: string, status?: string }} updates
+ */
+export async function updateAppointment(id, updates) {
+    try {
+        const { data, error } = await supabase
+            .from('appointments')
+            .update(updates)
+            .eq('id', id)
+            .select()
+            .single();
+        return { data, error };
+    } catch (err) { return { data: null, error: err }; }
+}
+
+/**
+ * Hard-delete an appointment (admin only).
+ * @param {number} id
+ */
+export async function deleteAppointment(id) {
+    try {
+        const { error } = await supabase.from('appointments').delete().eq('id', id);
+        return { error };
+    } catch (err) { return { error: err }; }
+}

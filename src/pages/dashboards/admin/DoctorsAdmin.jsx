@@ -21,11 +21,15 @@ import {
 import { getClinics } from '../../../api/clinics';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const CATEGORIES = [
+// Seed list — used as fallback when the doctors table is empty
+const SEED_CATEGORIES = [
     'باطنية', 'القلب', 'أطفال', 'نساء وولادة', 'عظام', 'أنف وأذن',
     'عيون', 'أسنان', 'تغذية', 'جراحة عامة', 'الأشعة التشخيصية',
     'مخ وأعصاب', 'أورام', 'أمراض دم', 'مسالك بولية', 'مختبر',
 ];
+
+// Sentinel value for the "أخرى..." option
+const OTHER = '__other__';
 
 const AVAILABILITY_OPTIONS = [
     { value: 'active',    label: 'متاح',       color: 'bg-emerald-100 text-emerald-700' },
@@ -38,7 +42,7 @@ const DAYS = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربع�
 const EMPTY_FORM = {
     name: '',
     title: '',
-    category: CATEGORIES[0],
+    category: SEED_CATEGORIES[0],
     clinic_id: '',
     availability_status: 'active',
     image_url: '',
@@ -100,14 +104,16 @@ export default function DoctorsAdmin() {
     const [search,   setSearch]   = useState('');
 
     // Panel
-    const [panelOpen, setPanelOpen] = useState(false);
-    const [editId,    setEditId]    = useState(null);
-    const [form,      setForm]      = useState(EMPTY_FORM);
-    const [imageFile, setImageFile] = useState(null);   // File | null
-    const [imagePreview, setImagePreview] = useState('');
-    const [chipInput, setChipInput] = useState('');
-    const [saving,    setSaving]    = useState(false);
-    const [saveError, setSaveError] = useState('');
+    const [panelOpen,   setPanelOpen]   = useState(false);
+    const [editId,      setEditId]      = useState(null);
+    const [form,        setForm]        = useState(EMPTY_FORM);
+    const [imageFile,   setImageFile]   = useState(null);
+    const [imagePreview,setImagePreview]= useState('');
+    const [chipInput,   setChipInput]   = useState('');
+    const [saving,      setSaving]      = useState(false);
+    const [saveError,   setSaveError]   = useState('');
+    // Custom category mode ("أخرى..." selected)
+    const [showCustom,  setShowCustom]  = useState(false);
 
     // Delete dialog
     const [deleteTarget, setDeleteTarget] = useState(null);
@@ -138,15 +144,20 @@ export default function DoctorsAdmin() {
         setImagePreview('');
         setChipInput('');
         setSaveError('');
+        setShowCustom(false);
         setPanelOpen(true);
     };
 
     const openEdit = (doc) => {
         setEditId(doc.id);
+        // Detect if this doctor's category is outside the known seed list
+        const knownCats = [...new Set([...SEED_CATEGORIES, ...doctors.map(d => d.category).filter(Boolean)])];
+        const isCustom = doc.category && !knownCats.includes(doc.category);
+        setShowCustom(isCustom);
         setForm({
             name:                doc.name                ?? '',
             title:               doc.title               ?? '',
-            category:            doc.category            ?? CATEGORIES[0],
+            category:            doc.category            ?? SEED_CATEGORIES[0],
             clinic_id:           doc.clinic_id            ?? '',
             availability_status: doc.availability_status  ?? 'active',
             image_url:           doc.image_url            ?? '',
@@ -166,7 +177,7 @@ export default function DoctorsAdmin() {
         setPanelOpen(true);
     };
 
-    const closePanel = () => { setPanelOpen(false); setSaveError(''); };
+    const closePanel = () => { setPanelOpen(false); setSaveError(''); setShowCustom(false); };
     const setField   = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
     // ── Image file handling ────────────────────────────────────────────────────
@@ -496,13 +507,40 @@ export default function DoctorsAdmin() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 mb-1">التخصص</label>
-                                    <select
-                                        value={form.category}
-                                        onChange={e => setField('category', e.target.value)}
-                                        className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-slate-50"
-                                    >
-                                        {CATEGORIES.map(c => <option key={c}>{c}</option>)}
-                                    </select>
+                                    {/* Dynamic select: seed list + unique categories from live doctors */}
+                                    {(() => {
+                                        const liveCats = doctors.map(d => d.category).filter(Boolean);
+                                        const opts = [...new Set([...SEED_CATEGORIES, ...liveCats])].sort((a, b) => a.localeCompare(b, 'ar'));
+                                        return (
+                                            <>
+                                                <select
+                                                    value={showCustom ? OTHER : form.category}
+                                                    onChange={e => {
+                                                        if (e.target.value === OTHER) {
+                                                            setShowCustom(true);
+                                                            setField('category', '');
+                                                        } else {
+                                                            setShowCustom(false);
+                                                            setField('category', e.target.value);
+                                                        }
+                                                    }}
+                                                    className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-slate-50"
+                                                >
+                                                    {opts.map(c => <option key={c} value={c}>{c}</option>)}
+                                                    <option value={OTHER}>أخرى... (إضافة تخصص جديد)</option>
+                                                </select>
+                                                {showCustom && (
+                                                    <input
+                                                        autoFocus
+                                                        value={form.category}
+                                                        onChange={e => setField('category', e.target.value)}
+                                                        className="mt-2 w-full border border-teal-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-teal-50 text-sm"
+                                                        placeholder="اكتب التخصص الجديد..."
+                                                    />
+                                                )}
+                                            </>
+                                        );
+                                    })()}
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 mb-1">العيادة</label>

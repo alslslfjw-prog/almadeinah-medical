@@ -33,10 +33,9 @@ const EMPTY_FORM = {
     content: '',
     category: CATEGORIES[0],
     image_url: '',
-    read_time: '5 دقائق',
+    read_time: '٥ دقائق',
     author: 'فريق التثقيف الطبي',
     icon_name: 'Activity',
-    is_featured: false,
 };
 
 // ── Helper: format date ───────────────────────────────────────────────────────
@@ -62,6 +61,9 @@ export default function BlogCMS() {
     // Delete dialog
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleting, setDeleting] = useState(false);
+
+    // Max-1-star alert modal
+    const [starLimitAlert, setStarLimitAlert] = useState(false);
 
     // ── Fetch all posts ─────────────────────────────────────────────────────────
     const fetchPosts = useCallback(async () => {
@@ -93,13 +95,12 @@ export default function BlogCMS() {
         setForm({
             title:       full.title       ?? '',
             excerpt:     full.excerpt     ?? '',
-            content:     full.content     ?? '',   // ← now populated from the full fetch
+            content:     full.content     ?? '',
             category:    full.category    ?? CATEGORIES[0],
             image_url:   full.image_url   ?? '',
             read_time:   full.read_time   ?? '',
             author:      full.author      ?? '',
             icon_name:   full.icon_name   ?? 'Activity',
-            is_featured: full.is_featured ?? false,
         });
         setSaveError('');
         setPanelOpen(true);
@@ -129,9 +130,18 @@ export default function BlogCMS() {
 
     // ── Toggle featured ─────────────────────────────────────────────────────────
     const handleToggleFeatured = async (post) => {
-        await toggleBlogFeatured(post.id, !post.is_featured);
+        const nextFeatured = !post.is_featured;
+        // If trying to STAR: block if any other post is already featured
+        if (nextFeatured) {
+            const alreadyFeatured = posts.filter(p => p.is_featured && p.id !== post.id);
+            if (alreadyFeatured.length >= 1) {
+                setStarLimitAlert(true);
+                return;
+            }
+        }
+        await toggleBlogFeatured(post.id, nextFeatured);
         setPosts(prev => prev.map(p =>
-            p.id === post.id ? { ...p, is_featured: !p.is_featured } : p
+            p.id === post.id ? { ...p, is_featured: nextFeatured } : p
         ));
     };
 
@@ -449,22 +459,6 @@ export default function BlogCMS() {
                                 )}
                             </div>
 
-                            {/* Featured toggle */}
-                            <div className="flex items-center justify-between bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
-                                <div className="flex items-center gap-2">
-                                    <Star size={16} className="text-amber-400" fill="currentColor" />
-                                    <span className="text-sm font-bold text-amber-800">مقالة مميزة على الصفحة الرئيسية</span>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => handleField('is_featured', !form.is_featured)}
-                                    className={`relative w-12 h-6 rounded-full transition-colors duration-300 focus:outline-none ${form.is_featured ? 'bg-amber-400' : 'bg-slate-200'
-                                        }`}
-                                >
-                                    <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-300 ${form.is_featured ? 'translate-x-1' : 'translate-x-7'
-                                        }`} />
-                                </button>
-                            </div>
 
                         </div>
 
@@ -524,6 +518,30 @@ export default function BlogCMS() {
                                 {deleting ? 'جارٍ الحذف...' : 'نعم، احذف'}
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Star Limit Alert Modal ─────────────────────────────────────── */}
+            {starLimitAlert && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" dir="rtl">
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setStarLimitAlert(false)} />
+                    <div className="relative bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full text-center space-y-4">
+                        <div className="w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center mx-auto">
+                            <Star size={26} className="text-amber-400" fill="currentColor" />
+                        </div>
+                        <div>
+                            <h3 className="font-extrabold text-slate-800 text-lg">تمييز المقالة</h3>
+                            <p className="text-slate-600 text-sm mt-2 leading-relaxed">
+                                لا يمكن تمييز أكثر من مقال واحد. يرجى إلغاء تمييز المقال الحالي أولاً.
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => setStarLimitAlert(false)}
+                            className="w-full bg-amber-400 hover:bg-amber-500 text-white font-bold py-2.5 rounded-xl transition text-sm"
+                        >
+                            حسناً، فهمتّ
+                        </button>
                     </div>
                 </div>
             )}

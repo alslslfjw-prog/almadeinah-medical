@@ -52,6 +52,7 @@ export default function Checkout() {
     const serviceName = bookingData.doctor?.name ?? bookingData.primarySelection ?? null;
 
     // ✅ Only insert columns that exist in the appointments table (verified from DB schema)
+    // appointment_time is now TEXT — accepts any string (Arabic shift labels or HH:MM)
     const { success: ok, error } = await createAppointment({
       patient_name: formData.name,
       phone_number: formData.phone,
@@ -60,8 +61,8 @@ export default function Checkout() {
       doctor_id: doctorId,
       scan_id: scanId,
       status: 'pending',
-      patient_user_id: user?.id ?? null,   // ← links booking to logged-in patient for RLS
-      service_name: serviceName,        // human-readable label for non-doctor bookings
+      patient_user_id: user?.id ?? null,
+      service_name: serviceName,
       type: bookingData.type ?? null,
     });
 

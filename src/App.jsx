@@ -36,6 +36,7 @@ import DoctorsAdmin from './pages/dashboards/admin/DoctorsAdmin';
 import ClinicsAdmin from './pages/dashboards/admin/ClinicsAdmin';
 import ScansAdmin from './pages/dashboards/admin/ScansAdmin';
 import LabsAdmin from './pages/dashboards/admin/LabsAdmin';
+import AppointmentsAdmin from './pages/dashboards/admin/AppointmentsAdmin';
 
 /**
  * AuthInitializer — registers the Supabase auth listener EXACTLY ONCE,
@@ -126,7 +127,7 @@ function App() {
           }
         >
           <Route index element={<AdminOverviewStub />} />
-          <Route path="appointments" element={<AdminStub title="المواعيد" />} />
+          <Route path="appointments" element={<AppointmentsAdmin />} />
           <Route path="finance"      element={<AdminStub title="المالية" />} />
           <Route path="cms/blog"     element={<BlogCMS />} />
           <Route path="cms/clinics"  element={<ClinicsAdmin />} />

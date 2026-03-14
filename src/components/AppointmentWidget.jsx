@@ -48,10 +48,16 @@ export default function AppointmentWidget({ preSelectedDoctor = null }) {
     { id: 'lab', label: 'الفحوصات', icon: <Microscope size={18} />, table: 'lab_tests_list' },
   ];
 
-  const shiftPeriods = [
-    { label: 'الفترة الصباحية (8:00 ص - 1:00 م)', id: 'morning' },
-    { label: 'الفترة المسائية (4:00 م - 9:00 م)', id: 'evening' },
-  ];
+  // ── schedule‑aware time helpers ─────────────────────────────────────────────
+  const DAY_NAMES = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+
+  /** Greyed-out disabled placeholder */
+  const SlotDisabled = ({ label }) => (
+    <div className="w-full bg-gray-100 border border-dashed border-gray-300 text-gray-400 py-3.5 px-4 rounded-xl text-sm font-medium flex items-center gap-2 select-none cursor-not-allowed">
+      <Clock size={15} className="shrink-0" />
+      <span>{label}</span>
+    </div>
+  );
 
   const normalizeText = (text) => {
     if (!text) return "";
@@ -156,6 +162,7 @@ export default function AppointmentWidget({ preSelectedDoctor = null }) {
   };
 
   const renderTimeInput = () => {
+    // ── Scans / Lab: native time input ───────────────────────────────────────
     if (activeTab === 'scans' || activeTab === 'lab') {
       return (
         <input
@@ -168,16 +175,14 @@ export default function AppointmentWidget({ preSelectedDoctor = null }) {
       );
     }
 
-    let available = shiftPeriods;
-    if (selectedDoctor?.shift) {
-      const s = selectedDoctor.shift;
-      const hasMorning = s.includes('صباح');
-      const hasEvening = s.includes('عصر') || s.includes('مساء') || s.includes('م');
-      if (hasMorning && !hasEvening) available = [shiftPeriods[0]];
-      if (!hasMorning && hasEvening) available = [shiftPeriods[1]];
-    }
+    // ── Doctors / Clinics: shift-based (single option per day) ───────────────
+    if (!selectedDoctor) return <SlotDisabled label="اختر الطبيب أولاً" />;
+    if (!date)           return <SlotDisabled label="اختر التاريخ أولاً" />;
 
-    return (
+    const selectedDay = DAY_NAMES[new Date(date).getDay()];
+    const schedule    = selectedDoctor?.schedule;
+
+    const renderSelect = (children) => (
       <div className="relative">
         <Clock size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
         <select
@@ -185,11 +190,31 @@ export default function AppointmentWidget({ preSelectedDoctor = null }) {
           onChange={(e) => setTime(e.target.value)}
           className="w-full bg-gray-50 border border-gray-200 text-gray-700 py-3.5 px-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 appearance-none transition cursor-pointer font-medium text-xs md:text-sm"
         >
-          <option value="">اختر الفترة...</option>
-          {available.map((p, i) => <option key={i} value={p.label}>{p.label}</option>)}
+          {children}
         </select>
         <ChevronDown className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
       </div>
+    );
+
+    // Doctor has a JSONB schedule — show the exact shift string for the selected day
+    if (schedule && typeof schedule === 'object' && !Array.isArray(schedule)) {
+      const shiftStr = schedule[selectedDay];
+      if (!shiftStr) return <SlotDisabled label={`الطبيب في إجازة يوم ${selectedDay} ❌`} />;
+      return renderSelect(
+        <>
+          <option value="">الوردية ليوم {selectedDay}...</option>
+          <option value={shiftStr}>{shiftStr}</option>
+        </>
+      );
+    }
+
+    // Fallback: no schedule JSONB (legacy doctor row)
+    return renderSelect(
+      <>
+        <option value="">اختر الفترة...</option>
+        <option value="الفترة الصباحية">الفترة الصباحية</option>
+        <option value="الفترة المسائية">الفترة المسائية</option>
+      </>
     );
   };
 
@@ -385,7 +410,7 @@ export default function AppointmentWidget({ preSelectedDoctor = null }) {
             type="date"
             min={new Date().toISOString().split('T')[0]}
             value={date}
-            onChange={(e) => setDate(e.target.value)}
+            onChange={(e) => { setDate(e.target.value); setTime(''); }}
             className="w-full bg-gray-50 border border-gray-200 text-gray-700 py-3.5 px-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 transition font-medium text-sm"
           />
         </div>
