@@ -4,6 +4,7 @@ import WhatsAppButton from './components/WhatsAppButton';
 import Footer from './components/Footer';
 import ProtectedRoute from './components/ProtectedRoute';
 import { useAuthListener } from './hooks/useAuth';
+import useAuthStore from './store/authStore';
 
 // ── Public Pages ────────────────────────────────────────────────────────────
 import Home from './pages/Home';
@@ -38,11 +39,13 @@ import ScansAdmin from './pages/dashboards/admin/ScansAdmin';
 import LabsAdmin from './pages/dashboards/admin/LabsAdmin';
 import AppointmentsAdmin from './pages/dashboards/admin/AppointmentsAdmin';
 import AdminOverview from './pages/dashboards/admin/AdminOverview';
+import PaymentGatewaysCMS from './pages/dashboards/admin/PaymentGatewaysCMS';
 
 /**
- * AuthInitializer — registers the Supabase auth listener EXACTLY ONCE,
- * at the app root. This component never unmounts, so the subscription
- * is permanent for the app lifetime.
+ * AuthInitializer — registers the Supabase auth listener EXACTLY ONCE.
+ * Kept as a component so it can be mounted inside Router context if needed,
+ * but useAuthListener is also called directly in App() to avoid chicken-and-egg
+ * with the isLoading guard.
  */
 function AuthInitializer() {
   useAuthListener();
@@ -97,11 +100,31 @@ function AdminOverviewStub() {
 }
 
 function App() {
+  // ── Register the auth listener FIRST, unconditionally ──────────────────────
+  // This MUST run before the isLoading guard to avoid the chicken-and-egg:
+  // if AuthInitializer were inside the conditional return, the listener that
+  // resolves isLoading would never mount, showing the spinner forever.
+  useAuthListener();
+  const isAuthLoading = useAuthStore(s => s.isLoading);
+
+  // ── Block ALL route rendering until session is resolved ────────────────────
+  // isLoading starts as true and becomes false only after INITIAL_SESSION fires.
+  // Without this guard, React renders the full route tree instantly, flashing the
+  // logged-out state (Login button, auth warnings) before Supabase confirms session.
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white gap-4">
+        <div className="relative w-16 h-16">
+          <div className="absolute inset-0 rounded-full border-4 border-teal-100" />
+          <div className="absolute inset-0 rounded-full border-4 border-teal-500 border-t-transparent animate-spin" />
+        </div>
+        <p className="text-sm font-medium text-slate-400 tracking-wide">جارٍ تحميل الجلسة...</p>
+      </div>
+    );
+  }
+
   return (
     <Router>
-      {/* Auth listener — registered once, never unmounts */}
-      <AuthInitializer />
-
       <Routes>
 
         {/* ── Auth routes (no Navbar/Footer) ────────────────────────────── */}
@@ -136,7 +159,7 @@ function App() {
           <Route path="cms/packages" element={<LabsAdmin />} />
           <Route path="doctors"      element={<DoctorsAdmin />} />
           <Route path="users"        element={<AdminStub title="إدارة المستخدمين" />} />
-          <Route path="gateways"     element={<AdminStub title="بوابات الدفع" />} />
+          <Route path="gateways"     element={<PaymentGatewaysCMS />} />
         </Route>
 
         {/* ── Public routes (stable PublicLayout parent — NEVER remounts) ── */}

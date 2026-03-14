@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useAppointments } from '../hooks/useAppointments';
 import useAuthStore from '../store/authStore';
+import { getPaymentMethods } from '../api/payments';
 
 export default function Checkout() {
   const location = useLocation();
@@ -17,13 +18,14 @@ export default function Checkout() {
   const { createAppointment, isLoading: loading } = useAppointments();
 
   const [bookingSuccess, setBookingSuccess] = useState(false);
+  const [paymentMethods, setPaymentMethods] = useState([]);
   const [formData, setFormData] = useState({
     name: '',
     birthDate: '',
     gender: '',
     phone: '',
     address: '',
-    paymentMethod: 'center'
+    paymentMethod: ''   // populated once payment methods load
   });
 
   // Redirect if accessed directly without booking data
@@ -33,6 +35,17 @@ export default function Checkout() {
       return () => clearTimeout(timer);
     }
   }, [bookingData, navigate]);
+
+  // Fetch active payment methods from DB (respects is_active toggle)
+  useEffect(() => {
+    getPaymentMethods().then(({ data }) => {
+      if (data?.length) {
+        setPaymentMethods(data);
+        // Auto-select the first method
+        setFormData(f => ({ ...f, paymentMethod: data[0].provider_id }));
+      }
+    });
+  }, []);
 
   if (!bookingData) {
     return (
@@ -46,6 +59,13 @@ export default function Checkout() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Phone validation: must be exactly 9 digits
+    const cleanPhone = formData.phone.replace(/\D/g, '');
+    if (cleanPhone.length < 9) {
+      alert('يرجى إدخال رقم هاتف صحيح (9 أرقام على الأقل)');
+      return;
+    }
+
     // Resolve doctor_id and service_name from booking context
     const doctorId = bookingData.doctor?.id ?? null;
     const scanId = bookingData.type === 'scans' ? (bookingData.scanId ?? null) : null;
@@ -55,7 +75,7 @@ export default function Checkout() {
     // appointment_time is now TEXT — accepts any string (Arabic shift labels or HH:MM)
     const { success: ok, error } = await createAppointment({
       patient_name: formData.name,
-      phone_number: formData.phone,
+      phone_number: cleanPhone,   // ← sanitised digits only
       appointment_date: bookingData.date || null,
       appointment_time: bookingData.time || null,
       doctor_id: doctorId,
@@ -271,9 +291,15 @@ export default function Checkout() {
                       <input
                         required
                         type="tel"
+                        inputMode="numeric"
                         placeholder="77xxxxxxx"
+                        maxLength={9}
                         value={formData.phone}
-                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        onChange={(e) => {
+                          // Strip all non-digit characters, cap at 9 digits
+                          const digits = e.target.value.replace(/\D/g, '').slice(0, 9);
+                          setFormData({ ...formData, phone: digits });
+                        }}
                         className="w-full bg-gray-50 border border-gray-200 text-gray-800 py-3.5 px-4 pr-12 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 transition"
                       />
                       <Phone className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
@@ -296,61 +322,83 @@ export default function Checkout() {
                   </div>
                 </div>
 
-                {/* Payment Method */}
+                {/* Payment Method — dynamic from DB */}
                 <div>
                   <label className="block text-gray-700 font-bold mb-3 text-sm">طريقة الدفع</label>
                   <div className="grid md:grid-cols-2 gap-4">
-
-                    <div
-                      onClick={() => setFormData({ ...formData, paymentMethod: 'center' })}
-                      className={`cursor-pointer rounded-xl border-2 p-4 flex items-center gap-4 transition-all duration-300 ${formData.paymentMethod === 'center' ? 'border-teal-500 bg-teal-50' : 'border-gray-100 hover:border-teal-200'
-                        }`}
-                    >
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${formData.paymentMethod === 'center' ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-500'
-                        }`}>
-                        <Building2 size={20} />
-                      </div>
-                      <div>
-                        <p className={`font-bold ${formData.paymentMethod === 'center' ? 'text-teal-900' : 'text-gray-700'}`}>الدفع في المركز</p>
-                        <p className="text-xs text-gray-500">الدفع نقداً عند الحضور للموعد</p>
-                      </div>
-                      {formData.paymentMethod === 'center' && <CheckCircle size={20} className="mr-auto text-teal-500" />}
-                    </div>
-
-                    <div
-                      onClick={() => setFormData({ ...formData, paymentMethod: 'alqutaibi' })}
-                      className={`cursor-pointer rounded-xl border-2 p-4 flex items-center gap-4 transition-all duration-300 ${formData.paymentMethod === 'alqutaibi' ? 'border-teal-500 bg-teal-50' : 'border-gray-100 hover:border-teal-200'
-                        }`}
-                    >
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${formData.paymentMethod === 'alqutaibi' ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-500'
-                        }`}>
-                        <CreditCard size={20} />
-                      </div>
-                      <div>
-                        <p className={`font-bold ${formData.paymentMethod === 'alqutaibi' ? 'text-teal-900' : 'text-gray-700'}`}>بنك القطيبي</p>
-                        <p className="text-xs text-gray-500">تحويل بنكي مباشر</p>
-                      </div>
-                      {formData.paymentMethod === 'alqutaibi' && <CheckCircle size={20} className="mr-auto text-teal-500" />}
-                    </div>
+                    {paymentMethods.map(method => {
+                      const selected = formData.paymentMethod === method.provider_id;
+                      return (
+                        <div
+                          key={method.provider_id}
+                          onClick={() => setFormData({ ...formData, paymentMethod: method.provider_id })}
+                          className={`cursor-pointer rounded-xl border-2 p-4 flex items-center gap-4 transition-all duration-300 ${
+                            selected ? 'border-teal-500 bg-teal-50' : 'border-gray-100 hover:border-teal-200'
+                          }`}
+                        >
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                            selected ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-500'
+                          }`}>
+                            {method.type === 'api' ? <CreditCard size={20} /> : <Building2 size={20} />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className={`font-bold truncate ${selected ? 'text-teal-900' : 'text-gray-700'}`}>
+                              {method.name_ar}
+                            </p>
+                            {method.config?.instructions_ar && (
+                              <p className="text-xs text-gray-500 truncate">{method.config.instructions_ar}</p>
+                            )}
+                          </div>
+                          {selected && <CheckCircle size={20} className="mr-auto shrink-0 text-teal-500" />}
+                        </div>
+                      );
+                    })}
                   </div>
 
-                  {formData.paymentMethod === 'alqutaibi' && (
-                    <div className="mt-3 p-3 bg-blue-50 text-blue-800 text-sm rounded-lg border border-blue-100">
-                      يرجى إرسال إشعار التحويل عبر الواتساب لتأكيد الحجز. رقم الحساب: <strong>123456</strong>
-                    </div>
-                  )}
+                  {/* Dynamic bank details for the selected manual method */}
+                  {(() => {
+                    const selected = paymentMethods.find(m => m.provider_id === formData.paymentMethod);
+                    if (!selected || selected.type !== 'manual') return null;
+                    const c = selected.config ?? {};
+                    const hasDetails = c.account_number || c.bank_name;
+                    if (!c.instructions_ar && !hasDetails) return null;
+                    return (
+                      <div className="mt-3 p-4 bg-blue-50 text-blue-800 text-sm rounded-lg border border-blue-100 space-y-1">
+                        {c.instructions_ar && <p>{c.instructions_ar}</p>}
+                        {c.bank_name && (
+                          <p>البنك: <strong>{c.bank_name}</strong></p>
+                        )}
+                        {c.account_number && (
+                          <p>رقم الحساب: <strong>{c.account_number}</strong></p>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Submit */}
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-gradient-to-r from-teal-500 to-blue-600 hover:from-teal-600 hover:to-blue-700 text-white font-bold py-4 rounded-xl shadow-lg transform hover:-translate-y-1 transition duration-300 disabled:opacity-70 disabled:cursor-not-allowed mt-4 flex items-center justify-center gap-2"
-                >
-                  {loading ? (
-                    <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> جارٍ التأكيد...</>
-                  ) : 'تأكيد الحجز نهائياً'}
-                </button>
+                {(() => {
+                  const selectedMethod = paymentMethods.find(m => m.provider_id === formData.paymentMethod);
+                  const isApiMethod = selectedMethod?.type === 'api';
+                  return (
+                    <>
+                      <button
+                        type="submit"
+                        disabled={loading || isApiMethod}
+                        className="w-full bg-gradient-to-r from-teal-500 to-blue-600 hover:from-teal-600 hover:to-blue-700 text-white font-bold py-4 rounded-xl shadow-lg transform hover:-translate-y-1 transition duration-300 disabled:opacity-70 disabled:cursor-not-allowed mt-4 flex items-center justify-center gap-2"
+                      >
+                        {loading ? (
+                          <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> جارٍ التأكيد...</>
+                        ) : 'تأكيد الحجز نهائياً'}
+                      </button>
+                      {isApiMethod && (
+                        <p className="text-center text-xs text-amber-600 font-semibold mt-2 flex items-center justify-center gap-1">
+                          ⚙️ الربط الإلكتروني قيد التجهيز حالياً
+                        </p>
+                      )}
+                    </>
+                  );
+                })()}
               </form>
             </div>
           </div>
