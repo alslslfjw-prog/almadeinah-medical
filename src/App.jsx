@@ -41,6 +41,8 @@ import AppointmentsAdmin from './pages/dashboards/admin/AppointmentsAdmin';
 import AdminOverview from './pages/dashboards/admin/AdminOverview';
 import PaymentGatewaysCMS from './pages/dashboards/admin/PaymentGatewaysCMS';
 import PackagesCMS from './pages/dashboards/admin/PackagesCMS';
+import SettingsCMS from './pages/dashboards/admin/SettingsCMS';
+
 
 /**
  * AuthInitializer — registers the Supabase auth listener EXACTLY ONCE.
@@ -155,6 +157,7 @@ function App() {
           <Route path="doctors"      element={<DoctorsAdmin />} />
           <Route path="users"        element={<AdminStub title="إدارة المستخدمين" />} />
           <Route path="gateways"  element={<PaymentGatewaysCMS />} />
+          <Route path="settings"  element={<SettingsCMS />} />
         </Route>
 
         {/* ── Public routes (stable PublicLayout parent — NEVER remounts) ── */}
