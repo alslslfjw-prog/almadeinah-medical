@@ -237,7 +237,7 @@ export default function Checkout() {
 
                 {/* Full Name */}
                 <div>
-                  <label className="block text-gray-700 font-bold mb-2 text-sm">الاسم الثلاثي</label>
+                  <label className="block text-gray-700 font-bold mb-2 text-sm">الاسم الرباعي</label>
                   <div className="relative">
                     <input
                       required
@@ -332,13 +332,11 @@ export default function Checkout() {
                         <div
                           key={method.provider_id}
                           onClick={() => setFormData({ ...formData, paymentMethod: method.provider_id })}
-                          className={`cursor-pointer rounded-xl border-2 p-4 flex items-center gap-4 transition-all duration-300 ${
-                            selected ? 'border-teal-500 bg-teal-50' : 'border-gray-100 hover:border-teal-200'
-                          }`}
+                          className={`cursor-pointer rounded-xl border-2 p-4 flex items-center gap-4 transition-all duration-300 ${selected ? 'border-teal-500 bg-teal-50' : 'border-gray-100 hover:border-teal-200'
+                            }`}
                         >
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                            selected ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-500'
-                          }`}>
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${selected ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-500'
+                            }`}>
                             {method.type === 'api' ? <CreditCard size={20} /> : <Building2 size={20} />}
                           </div>
                           <div className="flex-1 min-w-0">

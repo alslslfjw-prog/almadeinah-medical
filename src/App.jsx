@@ -36,10 +36,11 @@ import BlogCMS from './pages/dashboards/admin/BlogCMS';
 import DoctorsAdmin from './pages/dashboards/admin/DoctorsAdmin';
 import ClinicsAdmin from './pages/dashboards/admin/ClinicsAdmin';
 import ScansAdmin from './pages/dashboards/admin/ScansAdmin';
-import LabsAdmin from './pages/dashboards/admin/LabsAdmin';
+import LabTestsCMS from './pages/dashboards/admin/LabTestsCMS';
 import AppointmentsAdmin from './pages/dashboards/admin/AppointmentsAdmin';
 import AdminOverview from './pages/dashboards/admin/AdminOverview';
 import PaymentGatewaysCMS from './pages/dashboards/admin/PaymentGatewaysCMS';
+import PackagesCMS from './pages/dashboards/admin/PackagesCMS';
 
 /**
  * AuthInitializer — registers the Supabase auth listener EXACTLY ONCE.
@@ -100,17 +101,11 @@ function AdminOverviewStub() {
 }
 
 function App() {
-  // ── Register the auth listener FIRST, unconditionally ──────────────────────
-  // This MUST run before the isLoading guard to avoid the chicken-and-egg:
-  // if AuthInitializer were inside the conditional return, the listener that
-  // resolves isLoading would never mount, showing the spinner forever.
+  // ── Auth listener registered FIRST — unconditionally, before any guard ──────
   useAuthListener();
   const isAuthLoading = useAuthStore(s => s.isLoading);
 
-  // ── Block ALL route rendering until session is resolved ────────────────────
-  // isLoading starts as true and becomes false only after INITIAL_SESSION fires.
-  // Without this guard, React renders the full route tree instantly, flashing the
-  // logged-out state (Login button, auth warnings) before Supabase confirms session.
+  // Block ALL route rendering until session is resolved
   if (isAuthLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-white gap-4">
@@ -155,11 +150,11 @@ function App() {
           <Route path="finance"      element={<AdminStub title="المالية" />} />
           <Route path="cms/blog"     element={<BlogCMS />} />
           <Route path="cms/clinics"  element={<ClinicsAdmin />} />
-          <Route path="cms/labs"     element={<LabsAdmin />} />
-          <Route path="cms/packages" element={<LabsAdmin />} />
+          <Route path="cms/labs"     element={<LabTestsCMS />} />
+          <Route path="cms/packages" element={<PackagesCMS />} />
           <Route path="doctors"      element={<DoctorsAdmin />} />
           <Route path="users"        element={<AdminStub title="إدارة المستخدمين" />} />
-          <Route path="gateways"     element={<PaymentGatewaysCMS />} />
+          <Route path="gateways"  element={<PaymentGatewaysCMS />} />
         </Route>
 
         {/* ── Public routes (stable PublicLayout parent — NEVER remounts) ── */}

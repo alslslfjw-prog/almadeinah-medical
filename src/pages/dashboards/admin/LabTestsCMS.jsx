@@ -1,7 +1,6 @@
 /**
- * LabsAdmin — Standalone CMS for medical_tests_guide table.
- * Title: دليل الفحوصات
- * NO tabs. ONLY lab tests CRUD.
+ * LabTestsCMS — Standalone page for medical_tests_guide table.
+ * دليل الفحوصات — NO inner tabs, NO packages references.
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Pencil, Trash2, X, Save, Loader2, Search, FlaskConical } from 'lucide-react';
@@ -22,7 +21,8 @@ function ChipEditor({ label, chips, onChange, placeholder }) {
             <div className="flex flex-wrap gap-2 mb-2">
                 {chips.map(c => (
                     <span key={c} className="flex items-center gap-1 bg-teal-50 text-teal-700 border border-teal-200 px-3 py-1 rounded-full text-xs font-medium">
-                        {c}<button onClick={() => onChange(chips.filter(x => x !== c))} className="hover:text-red-500"><X size={11} /></button>
+                        {c}
+                        <button type="button" onClick={() => onChange(chips.filter(x => x !== c))} className="hover:text-red-500 ml-0.5"><X size={11} /></button>
                     </span>
                 ))}
             </div>
@@ -31,43 +31,45 @@ function ChipEditor({ label, chips, onChange, placeholder }) {
                     onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), add())}
                     className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-400 bg-slate-50"
                     placeholder={placeholder} />
-                <button onClick={add} className="bg-teal-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-teal-700">+ إضافة</button>
+                <button type="button" onClick={add} className="bg-teal-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-teal-700 transition">+ إضافة</button>
             </div>
         </div>
     );
 }
 
-function ConfirmDelete({ name, onConfirm, onCancel, busy }) {
+function DeleteModal({ name, onConfirm, onCancel, busy }) {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" dir="rtl">
             <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
-                <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center mb-4"><Trash2 size={22} className="text-red-600" /></div>
+                <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center mb-4">
+                    <Trash2 size={22} className="text-red-600" />
+                </div>
                 <h3 className="font-bold text-lg text-slate-800 mb-1">حذف الفحص</h3>
                 <p className="text-slate-500 text-sm mb-5">هل أنت متأكد من حذف <span className="font-bold text-slate-700">«{name}»</span>؟</p>
                 <div className="flex gap-3">
                     <button onClick={onConfirm} disabled={busy}
-                        className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2">
+                        className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition">
                         {busy && <Loader2 size={14} className="animate-spin" />}
                         {busy ? 'جارٍ الحذف...' : 'نعم، احذف'}
                     </button>
-                    <button onClick={onCancel} className="flex-1 border border-slate-200 hover:bg-slate-50 py-2.5 rounded-xl font-bold text-slate-600 text-sm">إلغاء</button>
+                    <button onClick={onCancel} className="flex-1 border border-slate-200 hover:bg-slate-50 py-2.5 rounded-xl font-bold text-slate-600 text-sm transition">إلغاء</button>
                 </div>
             </div>
         </div>
     );
 }
 
-export default function LabsAdmin() {
-    const [tests, setTests] = useState([]);
+export default function LabTestsCMS() {
+    const [tests,   setTests]   = useState([]);
     const [loading, setLoading] = useState(true);
-    const [search, setSearch] = useState('');
-    const [panelOpen, setPanelOpen] = useState(false);
-    const [editId, setEditId] = useState(null);
-    const [form, setForm] = useState(EMPTY);
-    const [saving, setSaving] = useState(false);
-    const [error, setError] = useState('');
-    const [del, setDel] = useState(null);
-    const [deleting, setDeleting] = useState(false);
+    const [search,  setSearch]  = useState('');
+    const [open,    setOpen]    = useState(false);
+    const [editId,  setEditId]  = useState(null);
+    const [form,    setForm]    = useState(EMPTY);
+    const [saving,  setSaving]  = useState(false);
+    const [err,     setErr]     = useState('');
+    const [delItem, setDelItem] = useState(null);
+    const [delBusy, setDelBusy] = useState(false);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -75,34 +77,41 @@ export default function LabsAdmin() {
         setTests(data ?? []);
         setLoading(false);
     }, []);
+
     useEffect(() => { load(); }, [load]);
 
-    const openAdd = () => { setEditId(null); setForm(EMPTY); setError(''); setPanelOpen(true); };
+    const openAdd  = () => { setEditId(null); setForm(EMPTY); setErr(''); setOpen(true); };
     const openEdit = t => {
         setEditId(t.id);
-        setForm({ name: t.name ?? '', category: t.category ?? '', about: t.about ?? '', reasons: t.reasons ?? [], prep: t.prep ?? '' });
-        setError(''); setPanelOpen(true);
+        setForm({ name: t.name ?? '', category: t.category ?? '', about: t.about ?? '', reasons: Array.isArray(t.reasons) ? t.reasons : [], prep: t.prep ?? '' });
+        setErr(''); setOpen(true);
     };
-    const close = () => { setPanelOpen(false); setError(''); };
-    const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+    const closePanel = () => { setOpen(false); setErr(''); };
+    const setField   = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-    const save = async () => {
-        setError('');
-        if (!form.name.trim()) { setError('اسم الفحص مطلوب'); return; }
+    const handleSave = async () => {
+        setErr('');
+        if (!form.name.trim()) { setErr('اسم الفحص مطلوب'); return; }
         setSaving(true);
         try {
-            const payload = { name: form.name.trim(), category: form.category.trim() || null, about: form.about.trim() || null, reasons: form.reasons.length ? form.reasons : null, prep: form.prep.trim() || null };
-            const { error: e } = editId ? await updateTestGuide(editId, payload) : await createTestGuide(payload);
-            if (e) { setError(e.message); return; }
-            close(); await load();
+            const payload = {
+                name:     form.name.trim(),
+                category: form.category.trim() || null,
+                about:    form.about.trim()    || null,
+                reasons:  form.reasons.length  ? form.reasons : null,
+                prep:     form.prep.trim()     || null,
+            };
+            const { error } = editId ? await updateTestGuide(editId, payload) : await createTestGuide(payload);
+            if (error) { setErr(error.message); return; }
+            closePanel(); await load();
         } finally { setSaving(false); }
     };
 
-    const confirmDel = async () => {
-        setDeleting(true);
-        const { error: e } = await deleteTestGuide(del.id);
-        setDeleting(false);
-        if (!e) { setTests(p => p.filter(t => t.id !== del.id)); setDel(null); }
+    const handleDelete = async () => {
+        setDelBusy(true);
+        const { error } = await deleteTestGuide(delItem.id);
+        setDelBusy(false);
+        if (!error) { setTests(p => p.filter(t => t.id !== delItem.id)); setDelItem(null); }
     };
 
     const filtered = tests.filter(t => t.name?.includes(search) || t.category?.includes(search));
@@ -112,9 +121,9 @@ export default function LabsAdmin() {
             <div className="flex items-center justify-between mb-6">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-800">دليل الفحوصات</h1>
-                    <p className="text-sm text-slate-400 mt-0.5">إدارة قائمة الفحوصات الطبية</p>
+                    <p className="text-sm text-slate-400 mt-0.5">إدارة قائمة الفحوصات الطبية المتاحة</p>
                 </div>
-                <button onClick={openAdd} className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2.5 rounded-xl font-bold text-sm shadow-sm">
+                <button onClick={openAdd} className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2.5 rounded-xl font-bold text-sm shadow-sm transition">
                     <Plus size={15} /> إضافة فحص
                 </button>
             </div>
@@ -134,13 +143,13 @@ export default function LabsAdmin() {
                             <tr>
                                 <th className="px-4 py-3 text-right">اسم الفحص</th>
                                 <th className="px-4 py-3 text-right">الفئة</th>
-                                <th className="px-4 py-3 text-center">أسباب</th>
+                                <th className="px-4 py-3 text-center">أسباب الفحص</th>
                                 <th className="px-4 py-3 text-center">إجراءات</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
                             {filtered.map(t => (
-                                <tr key={t.id} className="hover:bg-slate-50/50">
+                                <tr key={t.id} className="hover:bg-slate-50/50 transition">
                                     <td className="px-4 py-3 font-semibold text-slate-800">
                                         <div className="flex items-center gap-2"><FlaskConical size={14} className="text-teal-400 shrink-0" />{t.name}</div>
                                     </td>
@@ -150,65 +159,66 @@ export default function LabsAdmin() {
                                     <td className="px-4 py-3 text-center text-slate-500 text-xs">{Array.isArray(t.reasons) ? t.reasons.length : 0}</td>
                                     <td className="px-4 py-3">
                                         <div className="flex gap-2 justify-center">
-                                            <button onClick={() => openEdit(t)} className="p-1.5 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg"><Pencil size={15} /></button>
-                                            <button onClick={() => setDel(t)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={15} /></button>
+                                            <button onClick={() => openEdit(t)} className="p-1.5 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition"><Pencil size={15} /></button>
+                                            <button onClick={() => setDelItem(t)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"><Trash2 size={15} /></button>
                                         </div>
                                     </td>
                                 </tr>
                             ))}
-                            {filtered.length === 0 && <tr><td colSpan={4} className="py-16 text-center text-slate-400">لا توجد نتائج</td></tr>}
+                            {filtered.length === 0 && <tr><td colSpan={4} className="py-16 text-center text-slate-400">لا توجد فحوصات</td></tr>}
                         </tbody>
                     </table>
                 </div>
             )}
 
-            {panelOpen && (
+            {open && (
                 <div className="fixed inset-0 z-50 flex" dir="rtl">
-                    <div className="flex-1 bg-black/40 backdrop-blur-sm" onClick={close} />
+                    <div className="flex-1 bg-black/40 backdrop-blur-sm" onClick={closePanel} />
                     <div className="w-full max-w-lg bg-white h-full overflow-y-auto shadow-2xl flex flex-col">
-                        <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white z-10">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 sticky top-0 bg-white z-10">
                             <h2 className="font-bold text-lg text-slate-800">{editId ? 'تعديل الفحص' : 'إضافة فحص جديد'}</h2>
-                            <button onClick={close} className="p-1.5 hover:bg-slate-100 rounded-lg"><X size={18} /></button>
+                            <button onClick={closePanel} className="p-1.5 hover:bg-slate-100 rounded-lg transition"><X size={18} /></button>
                         </div>
                         <div className="flex-1 px-6 py-5 space-y-5 text-sm">
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 mb-1">اسم الفحص *</label>
-                                    <input value={form.name} onChange={e => set('name', e.target.value)}
+                                    <label className="block text-xs font-bold text-slate-500 mb-1">اسم الفحص <span className="text-red-500">*</span></label>
+                                    <input value={form.name} onChange={e => setField('name', e.target.value)}
                                         className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-slate-50" />
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 mb-1">الفئة</label>
-                                    <input value={form.category} onChange={e => set('category', e.target.value)}
+                                    <input value={form.category} onChange={e => setField('category', e.target.value)}
                                         className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-slate-50" placeholder="دم · بول · هرمونات" />
                                 </div>
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">عن الفحص</label>
-                                <textarea rows={3} value={form.about} onChange={e => set('about', e.target.value)}
+                                <textarea rows={3} value={form.about} onChange={e => setField('about', e.target.value)}
                                     className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-slate-50 resize-none" />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">التحضير</label>
-                                <textarea rows={2} value={form.prep} onChange={e => set('prep', e.target.value)}
-                                    className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-slate-50 resize-none" />
+                                <label className="block text-xs font-bold text-slate-500 mb-1">تعليمات التحضير</label>
+                                <textarea rows={2} value={form.prep} onChange={e => setField('prep', e.target.value)}
+                                    className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-slate-50 resize-none"
+                                    placeholder="الصيام 8 ساعات قبل الفحص..." />
                             </div>
-                            <ChipEditor label="أسباب الفحص" chips={form.reasons} onChange={v => set('reasons', v)} placeholder="أضف سبباً..." />
-                            {error && <p className="text-red-500 text-xs bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>}
+                            <ChipEditor label="أسباب الفحص" chips={form.reasons} onChange={v => setField('reasons', v)} placeholder="أضف سبباً..." />
+                            {err && <p className="text-red-500 text-xs bg-red-50 border border-red-100 rounded-lg px-3 py-2">{err}</p>}
                         </div>
-                        <div className="px-6 py-4 border-t sticky bottom-0 bg-white flex gap-3">
-                            <button onClick={save} disabled={saving}
-                                className="flex-1 flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white py-2.5 rounded-xl font-bold text-sm">
+                        <div className="px-6 py-4 border-t border-slate-100 sticky bottom-0 bg-white flex gap-3">
+                            <button onClick={handleSave} disabled={saving}
+                                className="flex-1 flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white py-2.5 rounded-xl font-bold text-sm transition">
                                 {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                                 {saving ? 'جارٍ الحفظ...' : 'حفظ'}
                             </button>
-                            <button onClick={close} className="px-5 border border-slate-200 hover:bg-slate-50 rounded-xl font-bold text-slate-600 text-sm">إلغاء</button>
+                            <button onClick={closePanel} className="px-5 py-2.5 border border-slate-200 hover:bg-slate-50 rounded-xl font-bold text-slate-600 text-sm transition">إلغاء</button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {del && <ConfirmDelete name={del.name} busy={deleting} onConfirm={confirmDel} onCancel={() => setDel(null)} />}
+            {delItem && <DeleteModal name={delItem.name} busy={delBusy} onConfirm={handleDelete} onCancel={() => setDelItem(null)} />}
         </div>
     );
 }
