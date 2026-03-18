@@ -6,6 +6,7 @@ import {
   AlertCircle, FileText, CheckCircle, Filter, 
   TestTube, HeartPulse, ShieldAlert
 } from 'lucide-react';
+import { useSiteSettings } from '../hooks/useSiteSettings';
 
 export default function AllTests() {
   const [testsData, setTestsData] = useState([]);
@@ -14,6 +15,7 @@ export default function AllTests() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState('الكل');
   const [categories, setCategories] = useState(['الكل']);
+  const siteSettings = useSiteSettings();
 
   // جلب البيانات من Supabase عند تحميل الصفحة
   useEffect(() => {
@@ -192,7 +194,17 @@ export default function AllTests() {
 
                 {/* Body (Scrollable) */}
                 <div className="p-6 overflow-y-auto custom-scrollbar">
-                    
+
+                    {/* Price Badge */}
+                    {selectedTest.price > 0 && siteSettings?.usd_to_yer_rate > 0 && (
+                        <div className="bg-teal-50 border border-teal-100 rounded-xl px-4 py-3 mb-5 flex items-center justify-between">
+                            <span className="text-sm font-bold text-teal-700">سعر الفحص</span>
+                            <span className="text-sm font-bold text-teal-600 font-mono">
+                                {Math.round(selectedTest.price * siteSettings.usd_to_yer_rate).toLocaleString('ar-YE')} ر.ي
+                            </span>
+                        </div>
+                    )}
+
                     {/* About */}
                     <div className="mb-6">
                         <h4 className="text-blue-900 font-bold mb-3 flex items-center gap-2 text-sm">

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { CheckCircle } from 'lucide-react';
 import { useDoctorById } from '../hooks/useDoctors';
+import { useSiteSettings } from '../hooks/useSiteSettings';
 
 export default function DoctorDetails() {
     const { id } = useParams();
@@ -9,6 +10,7 @@ export default function DoctorDetails() {
 
     // ✅ Replaced inline supabase fetch with useDoctorById hook
     const { doctor, isLoading: loading } = useDoctorById(id);
+    const siteSettings = useSiteSettings();
 
     const [date, setDate] = useState('');
     const [time, setTime] = useState('');
@@ -97,9 +99,19 @@ export default function DoctorDetails() {
                     {/* --- RIGHT COLUMN (Booking Card) --- */}
                     <div className="lg:col-span-1 order-2 lg:order-1">
                         <div className="bg-white rounded-3xl shadow-xl p-6 border border-gray-100 sticky top-24">
-                            <h3 className="text-xl font-bold text-gray-800 mb-6 border-b border-gray-100 pb-4">
+                            <h3 className="text-xl font-bold text-gray-800 mb-4 border-b border-gray-100 pb-4">
                                 احجز موعدك
                             </h3>
+
+                            {/* Consultation Price */}
+                            {doctor.price > 0 && siteSettings?.usd_to_yer_rate > 0 && (
+                                <div className="bg-teal-50 border border-teal-100 rounded-xl px-4 py-3 mb-4 flex items-center justify-between">
+                                    <span className="text-sm font-bold text-teal-700">سعر الكشف</span>
+                                    <span className="text-sm font-bold text-teal-600 font-mono">
+                                        {Math.round(doctor.price * siteSettings.usd_to_yer_rate).toLocaleString('ar-YE')} ر.ي
+                                    </span>
+                                </div>
+                            )}
 
                             <div className="space-y-4">
                                 {/* Date Input */}

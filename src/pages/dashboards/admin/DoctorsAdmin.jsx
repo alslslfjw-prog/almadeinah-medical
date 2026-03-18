@@ -54,6 +54,7 @@ const EMPTY_FORM = {
     shift: '',
     home_page_order: null,
     priority: 100,
+    price: 0,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -169,6 +170,7 @@ export default function DoctorsAdmin() {
             shift:               doc.shift                ?? '',
             home_page_order:     doc.home_page_order      ?? null,
             priority:            doc.priority             ?? 100,
+            price:               doc.price               ?? 0,
         });
         setImageFile(null);
         setImagePreview(doc.image_url ?? '');
@@ -275,6 +277,7 @@ export default function DoctorsAdmin() {
                 shift:               form.shift.trim() || null,
                 home_page_order:     form.home_page_order,
                 priority:            Number(form.priority) || 100,
+                price:               form.price !== '' ? Number(form.price) : 0,
             };
 
             if (editId) {
@@ -373,6 +376,7 @@ export default function DoctorsAdmin() {
                                 <th className="px-4 py-3 text-right">الطبيب</th>
                                 <th className="px-4 py-3 text-right">التخصص</th>
                                 <th className="px-4 py-3 text-right">العيادة</th>
+                                <th className="px-4 py-3 text-right">سعر الكشف</th>
                                 <th className="px-4 py-3 text-center">الحالة</th>
                                 <th className="px-4 py-3 text-center">مميز</th>
                                 <th className="px-4 py-3 text-center">إجراءات</th>
@@ -401,6 +405,12 @@ export default function DoctorsAdmin() {
                                     </td>
                                     <td className="px-4 py-3 text-slate-600">{doc.category}</td>
                                     <td className="px-4 py-3 text-slate-500">{doc.clinics?.name ?? '—'}</td>
+                                    <td className="px-4 py-3 text-slate-600 font-medium">
+                                        {doc.price && Number(doc.price) > 0
+                                            ? `$ ${Number(doc.price).toLocaleString('en-US')}`
+                                            : '—'
+                                        }
+                                    </td>
                                     <td className="px-4 py-3 text-center">
                                         <AvailBadge status={doc.availability_status} />
                                     </td>
@@ -579,6 +589,20 @@ export default function DoctorsAdmin() {
                                         placeholder="فارغ = غير مميز"
                                     />
                                 </div>
+                            </div>
+
+                            {/* Price (consultation fee in USD) */}
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">سعر الكشف (دولار أمريكي $)</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    step="500"
+                                    value={form.price}
+                                    onChange={e => setField('price', e.target.value)}
+                                    className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-slate-50"
+                                    placeholder="0"
+                                />
                             </div>
 
                             {/* Work hours + Shift */}

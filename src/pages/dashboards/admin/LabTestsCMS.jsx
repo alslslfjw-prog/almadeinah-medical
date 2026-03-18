@@ -6,7 +6,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Pencil, Trash2, X, Save, Loader2, Search, FlaskConical } from 'lucide-react';
 import { getMedicalTestsGuide, createTestGuide, updateTestGuide, deleteTestGuide } from '../../../api/scans';
 
-const EMPTY = { name: '', category: '', about: '', reasons: [], prep: '' };
+const EMPTY = { name: '', category: '', about: '', reasons: [], prep: '', price: 0 };
 
 function ChipEditor({ label, chips, onChange, placeholder }) {
     const [input, setInput] = useState('');
@@ -83,7 +83,7 @@ export default function LabTestsCMS() {
     const openAdd  = () => { setEditId(null); setForm(EMPTY); setErr(''); setOpen(true); };
     const openEdit = t => {
         setEditId(t.id);
-        setForm({ name: t.name ?? '', category: t.category ?? '', about: t.about ?? '', reasons: Array.isArray(t.reasons) ? t.reasons : [], prep: t.prep ?? '' });
+        setForm({ name: t.name ?? '', category: t.category ?? '', about: t.about ?? '', reasons: Array.isArray(t.reasons) ? t.reasons : [], prep: t.prep ?? '', price: t.price ?? 0 });
         setErr(''); setOpen(true);
     };
     const closePanel = () => { setOpen(false); setErr(''); };
@@ -100,6 +100,7 @@ export default function LabTestsCMS() {
                 about:    form.about.trim()    || null,
                 reasons:  form.reasons.length  ? form.reasons : null,
                 prep:     form.prep.trim()     || null,
+                price:    form.price !== '' ? Number(form.price) : 0,
             };
             const { error } = editId ? await updateTestGuide(editId, payload) : await createTestGuide(payload);
             if (error) { setErr(error.message); return; }
@@ -143,6 +144,7 @@ export default function LabTestsCMS() {
                             <tr>
                                 <th className="px-4 py-3 text-right">اسم الفحص</th>
                                 <th className="px-4 py-3 text-right">الفئة</th>
+                                <th className="px-4 py-3 text-right">سعر الفحص</th>
                                 <th className="px-4 py-3 text-center">أسباب الفحص</th>
                                 <th className="px-4 py-3 text-center">إجراءات</th>
                             </tr>
@@ -155,6 +157,9 @@ export default function LabTestsCMS() {
                                     </td>
                                     <td className="px-4 py-3">
                                         {t.category && <span className="bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full font-medium">{t.category}</span>}
+                                    </td>
+                                    <td className="px-4 py-3 text-slate-600 font-medium">
+                                        {t.price && Number(t.price) > 0 ? `$ ${Number(t.price).toLocaleString('en-US')}` : '—'}
                                     </td>
                                     <td className="px-4 py-3 text-center text-slate-500 text-xs">{Array.isArray(t.reasons) ? t.reasons.length : 0}</td>
                                     <td className="px-4 py-3">
@@ -191,6 +196,19 @@ export default function LabTestsCMS() {
                                     <input value={form.category} onChange={e => setField('category', e.target.value)}
                                         className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-slate-50" placeholder="دم · بول · هرمونات" />
                                 </div>
+                            </div>
+                            {/* Price */}
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">سعر الفحص (دولار أمريكي $)</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    value={form.price}
+                                    onChange={e => setField('price', e.target.value)}
+                                    className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-slate-50"
+                                    placeholder="0"
+                                />
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">عن الفحص</label>
