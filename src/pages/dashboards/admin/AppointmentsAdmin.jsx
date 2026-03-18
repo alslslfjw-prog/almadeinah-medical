@@ -25,25 +25,25 @@ import {
 
 // ── Status config ─────────────────────────────────────────────────────────────
 const STATUS_TABS = [
-    { value: '',           label: 'الكل' },
-    { value: 'pending',    label: 'قيد الانتظار' },
-    { value: 'confirmed',  label: 'مؤكد' },
-    { value: 'completed',  label: 'مكتمل' },
-    { value: 'cancelled',  label: 'ملغى' },
+    { value: '', label: 'الكل' },
+    { value: 'pending', label: 'قيد الانتظار' },
+    { value: 'confirmed', label: 'مؤكد' },
+    { value: 'completed', label: 'مكتمل' },
+    { value: 'cancelled', label: 'ملغى' },
 ];
 
 const STATUS_STYLES = {
-    pending:   { bg: 'bg-amber-100',  text: 'text-amber-700',  label: 'قيد الانتظار' },
-    confirmed: { bg: 'bg-blue-100',   text: 'text-blue-700',   label: 'مؤكد' },
-    completed: { bg: 'bg-emerald-100',text: 'text-emerald-700',label: 'مكتمل' },
-    cancelled: { bg: 'bg-red-100',    text: 'text-red-600',    label: 'ملغى' },
+    pending: { bg: 'bg-amber-100', text: 'text-amber-700', label: 'قيد الانتظار' },
+    confirmed: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'مؤكد' },
+    completed: { bg: 'bg-emerald-100', text: 'text-emerald-700', label: 'مكتمل' },
+    cancelled: { bg: 'bg-red-100', text: 'text-red-600', label: 'ملغى' },
 };
 
 const TYPE_LABELS = {
-    doctors:  'أطباء',
-    clinics:  'عيادات',
-    scans:    'أشعة',
-    lab:      'مختبر',
+    doctors: 'أطباء',
+    clinics: 'عيادات',
+    scans: 'أشعة',
+    lab: 'مختبر',
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -67,7 +67,7 @@ function fmtTime(t) {
 function serviceName(appt) {
     if (appt.service_name) return appt.service_name;
     if (appt.doctors?.name) return appt.doctors.name;
-    if (appt.scans?.name)   return appt.scans.name;
+    if (appt.scans?.name) return appt.scans.name;
     return '—';
 }
 
@@ -84,20 +84,20 @@ function StatusBadge({ status }) {
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function AppointmentsAdmin() {
     const [appointments, setAppointments] = useState([]);
-    const [loading,      setLoading]      = useState(true);
-    const [search,       setSearch]       = useState('');
+    const [loading, setLoading] = useState(true);
+    const [search, setSearch] = useState('');
     const [filters, setFilters] = useState({ status: '', from: '', to: '' });
 
     // Edit panel
-    const [panelOpen,   setPanelOpen]   = useState(false);
-    const [editTarget,  setEditTarget]  = useState(null);
-    const [form,        setForm]        = useState({});
-    const [saving,      setSaving]      = useState(false);
-    const [saveError,   setSaveError]   = useState('');
+    const [panelOpen, setPanelOpen] = useState(false);
+    const [editTarget, setEditTarget] = useState(null);
+    const [form, setForm] = useState({});
+    const [saving, setSaving] = useState(false);
+    const [saveError, setSaveError] = useState('');
 
     // Delete
     const [deleteTarget, setDeleteTarget] = useState(null);
-    const [deleting,     setDeleting]     = useState(false);
+    const [deleting, setDeleting] = useState(false);
 
     // Quick-action inline loading
     const [actionLoading, setActionLoading] = useState(null); // appointment id
@@ -107,8 +107,8 @@ export default function AppointmentsAdmin() {
         setLoading(true);
         const { data } = await getAllAppointments({
             status: filters.status || undefined,
-            from:   filters.from   || undefined,
-            to:     filters.to     || undefined,
+            from: filters.from || undefined,
+            to: filters.to || undefined,
         });
         setAppointments(data ?? []);
         setLoading(false);
@@ -137,28 +137,28 @@ export default function AppointmentsAdmin() {
     const openEdit = (appt) => {
         setEditTarget(appt);
         setForm({
-            patient_name:     appt.patient_name     ?? '',
-            phone_number:     appt.phone_number     ?? '',
+            patient_name: appt.patient_name ?? '',
+            phone_number: appt.phone_number ?? '',
             appointment_date: appt.appointment_date ?? '',
             appointment_time: appt.appointment_time ?? '',
-            status:           appt.status           ?? 'pending',
+            status: appt.status ?? 'pending',
         });
         setSaveError('');
         setPanelOpen(true);
     };
     const closePanel = () => { setPanelOpen(false); setSaveError(''); setEditTarget(null); };
-    const setField   = (k, v) => setForm(f => ({ ...f, [k]: v }));
+    const setField = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
     const handleSave = async () => {
         setSaveError('');
         if (!form.patient_name.trim()) { setSaveError('اسم المريض مطلوب'); return; }
         setSaving(true);
         const payload = {
-            patient_name:     form.patient_name.trim(),
-            phone_number:     form.phone_number.trim()     || null,
-            appointment_date: form.appointment_date        || null,
-            appointment_time: form.appointment_time        || null,
-            status:           form.status,
+            patient_name: form.patient_name.trim(),
+            phone_number: form.phone_number.trim() || null,
+            appointment_date: form.appointment_date || null,
+            appointment_time: form.appointment_time || null,
+            status: form.status,
         };
         const { error } = await updateAppointment(editTarget.id, payload);
         setSaving(false);
@@ -183,7 +183,7 @@ export default function AppointmentsAdmin() {
 
     // ── KPI counts ──────────────────────────────────────────────────────────────
     const counts = {
-        pending:   appointments.filter(a => a.status === 'pending').length,
+        pending: appointments.filter(a => a.status === 'pending').length,
         confirmed: appointments.filter(a => a.status === 'confirmed').length,
         completed: appointments.filter(a => a.status === 'completed').length,
         cancelled: appointments.filter(a => a.status === 'cancelled').length,
@@ -204,10 +204,10 @@ export default function AppointmentsAdmin() {
             {/* ── KPI summary cards ────────────────────────────────────────── */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
-                    { key: 'pending',   icon: Clock,         label: 'قيد الانتظار', color: 'text-amber-500',  bg: 'bg-amber-50'   },
-                    { key: 'confirmed', icon: CheckCircle2,  label: 'مؤكدة',        color: 'text-blue-500',   bg: 'bg-blue-50'    },
-                    { key: 'completed', icon: Flag,          label: 'مكتملة',       color: 'text-emerald-500',bg: 'bg-emerald-50' },
-                    { key: 'cancelled', icon: X,             label: 'ملغاة',        color: 'text-red-500',    bg: 'bg-red-50'     },
+                    { key: 'pending', icon: Clock, label: 'قيد الانتظار', color: 'text-amber-500', bg: 'bg-amber-50' },
+                    { key: 'confirmed', icon: CheckCircle2, label: 'مؤكدة', color: 'text-blue-500', bg: 'bg-blue-50' },
+                    { key: 'completed', icon: Flag, label: 'مكتملة', color: 'text-emerald-500', bg: 'bg-emerald-50' },
+                    { key: 'cancelled', icon: X, label: 'ملغاة', color: 'text-red-500', bg: 'bg-red-50' },
                 ].map(({ key, icon: Icon, label, color, bg }) => (
                     <button
                         key={key}

@@ -32,9 +32,9 @@ const SEED_CATEGORIES = [
 const OTHER = '__other__';
 
 const AVAILABILITY_OPTIONS = [
-    { value: 'active',    label: 'متاح',       color: 'bg-emerald-100 text-emerald-700' },
-    { value: 'inactive',  label: 'غير متاح',   color: 'bg-gray-100 text-gray-500' },
-    { value: 'on_leave',  label: 'إجازة',      color: 'bg-amber-100 text-amber-700' },
+    { value: 'active', label: 'متاح', color: 'bg-emerald-100 text-emerald-700' },
+    { value: 'inactive', label: 'غير متاح', color: 'bg-gray-100 text-gray-500' },
+    { value: 'on_leave', label: 'إجازة', color: 'bg-amber-100 text-amber-700' },
 ];
 
 const DAYS = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
@@ -69,7 +69,7 @@ function to12hArabic(time24) {
     const h = parseInt(hStr, 10);
     const m = parseInt(mStr, 10);
     const period = h < 12 ? 'ص' : 'م';
-    const h12    = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
     return `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${period}`;
 }
 
@@ -99,26 +99,26 @@ function AvailBadge({ status }) {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function DoctorsAdmin() {
-    const [doctors,  setDoctors]  = useState([]);
-    const [clinics,  setClinics]  = useState([]);
-    const [loading,  setLoading]  = useState(true);
-    const [search,   setSearch]   = useState('');
+    const [doctors, setDoctors] = useState([]);
+    const [clinics, setClinics] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [search, setSearch] = useState('');
 
     // Panel
-    const [panelOpen,   setPanelOpen]   = useState(false);
-    const [editId,      setEditId]      = useState(null);
-    const [form,        setForm]        = useState(EMPTY_FORM);
-    const [imageFile,   setImageFile]   = useState(null);
-    const [imagePreview,setImagePreview]= useState('');
-    const [chipInput,   setChipInput]   = useState('');
-    const [saving,      setSaving]      = useState(false);
-    const [saveError,   setSaveError]   = useState('');
+    const [panelOpen, setPanelOpen] = useState(false);
+    const [editId, setEditId] = useState(null);
+    const [form, setForm] = useState(EMPTY_FORM);
+    const [imageFile, setImageFile] = useState(null);
+    const [imagePreview, setImagePreview] = useState('');
+    const [chipInput, setChipInput] = useState('');
+    const [saving, setSaving] = useState(false);
+    const [saveError, setSaveError] = useState('');
     // Custom category mode ("أخرى..." selected)
-    const [showCustom,  setShowCustom]  = useState(false);
+    const [showCustom, setShowCustom] = useState(false);
 
     // Delete dialog
     const [deleteTarget, setDeleteTarget] = useState(null);
-    const [deleting,     setDeleting]     = useState(false);
+    const [deleting, setDeleting] = useState(false);
 
     // Featured limit alert
     const [featuredAlert, setFeaturedAlert] = useState('');
@@ -131,7 +131,7 @@ export default function DoctorsAdmin() {
             getClinics(),
         ]);
         setDoctors(docs ?? []);
-        setClinics(cls  ?? []);
+        setClinics(cls ?? []);
         setLoading(false);
     }, []);
 
@@ -156,21 +156,21 @@ export default function DoctorsAdmin() {
         const isCustom = doc.category && !knownCats.includes(doc.category);
         setShowCustom(isCustom);
         setForm({
-            name:                doc.name                ?? '',
-            title:               doc.title               ?? '',
-            category:            doc.category            ?? SEED_CATEGORIES[0],
-            clinic_id:           doc.clinic_id            ?? '',
-            availability_status: doc.availability_status  ?? 'active',
-            image_url:           doc.image_url            ?? '',
-            bio:                 doc.bio                  ?? '',
-            qualifications:      doc.qualifications       ?? '',
-            sub_specialties:     Array.isArray(doc.sub_specialties) ? doc.sub_specialties : [],
-            schedule:            doc.schedule && typeof doc.schedule === 'object' ? doc.schedule : {},
-            work_hours:          doc.work_hours            ?? '',
-            shift:               doc.shift                ?? '',
-            home_page_order:     doc.home_page_order      ?? null,
-            priority:            doc.priority             ?? 100,
-            price:               doc.price               ?? 0,
+            name: doc.name ?? '',
+            title: doc.title ?? '',
+            category: doc.category ?? SEED_CATEGORIES[0],
+            clinic_id: doc.clinic_id ?? '',
+            availability_status: doc.availability_status ?? 'active',
+            image_url: doc.image_url ?? '',
+            bio: doc.bio ?? '',
+            qualifications: doc.qualifications ?? '',
+            sub_specialties: Array.isArray(doc.sub_specialties) ? doc.sub_specialties : [],
+            schedule: doc.schedule && typeof doc.schedule === 'object' ? doc.schedule : {},
+            work_hours: doc.work_hours ?? '',
+            shift: doc.shift ?? '',
+            home_page_order: doc.home_page_order ?? null,
+            priority: doc.priority ?? 100,
+            price: doc.price ?? 0,
         });
         setImageFile(null);
         setImagePreview(doc.image_url ?? '');
@@ -180,7 +180,7 @@ export default function DoctorsAdmin() {
     };
 
     const closePanel = () => { setPanelOpen(false); setSaveError(''); setShowCustom(false); };
-    const setField   = (k, v) => setForm(f => ({ ...f, [k]: v }));
+    const setField = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
     // ── Image file handling ────────────────────────────────────────────────────
     const handleImageChange = (e) => {
@@ -263,21 +263,21 @@ export default function DoctorsAdmin() {
             }
 
             const payload = {
-                name:                form.name.trim(),
-                title:               form.title.trim(),
-                category:            form.category,
-                clinic_id:           form.clinic_id || null,
+                name: form.name.trim(),
+                title: form.title.trim(),
+                category: form.category,
+                clinic_id: form.clinic_id || null,
                 availability_status: form.availability_status,
-                image_url:           imageUrl || null,
-                bio:                 form.bio.trim() || null,
-                qualifications:      form.qualifications.trim() || null,
-                sub_specialties:     form.sub_specialties.length ? form.sub_specialties : null,
-                schedule:            Object.keys(form.schedule).length ? form.schedule : null,
-                work_hours:          form.work_hours.trim() || null,
-                shift:               form.shift.trim() || null,
-                home_page_order:     form.home_page_order,
-                priority:            Number(form.priority) || 100,
-                price:               form.price !== '' ? Number(form.price) : 0,
+                image_url: imageUrl || null,
+                bio: form.bio.trim() || null,
+                qualifications: form.qualifications.trim() || null,
+                sub_specialties: form.sub_specialties.length ? form.sub_specialties : null,
+                schedule: Object.keys(form.schedule).length ? form.schedule : null,
+                work_hours: form.work_hours.trim() || null,
+                shift: form.shift.trim() || null,
+                home_page_order: form.home_page_order,
+                priority: Number(form.priority) || 100,
+                price: form.price !== '' ? Number(form.price) : 0,
             };
 
             if (editId) {

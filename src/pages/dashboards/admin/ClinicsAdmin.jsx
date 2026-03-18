@@ -20,18 +20,18 @@ import {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const COLOR_OPTIONS = [
-    { value: 'green',  label: 'أخضر',    hex: '#10b981' },
-    { value: 'blue',   label: 'أزرق',    hex: '#3b82f6' },
-    { value: 'red',    label: 'أحمر',    hex: '#ef4444' },
-    { value: 'cyan',   label: 'سماوي',   hex: '#06b6d4' },
-    { value: 'pink',   label: 'وردي',    hex: '#ec4899' },
-    { value: 'purple', label: 'بنفسجي',  hex: '#8b5cf6' },
-    { value: 'yellow', label: 'أصفر',    hex: '#f59e0b' },
-    { value: 'indigo', label: 'نيلي',    hex: '#6366f1' },
-    { value: 'rose',   label: 'وردي غامق', hex: '#f43f5e' },
-    { value: 'teal',   label: 'زيتي',    hex: '#14b8a6' },
+    { value: 'green', label: 'أخضر', hex: '#10b981' },
+    { value: 'blue', label: 'أزرق', hex: '#3b82f6' },
+    { value: 'red', label: 'أحمر', hex: '#ef4444' },
+    { value: 'cyan', label: 'سماوي', hex: '#06b6d4' },
+    { value: 'pink', label: 'وردي', hex: '#ec4899' },
+    { value: 'purple', label: 'بنفسجي', hex: '#8b5cf6' },
+    { value: 'yellow', label: 'أصفر', hex: '#f59e0b' },
+    { value: 'indigo', label: 'نيلي', hex: '#6366f1' },
+    { value: 'rose', label: 'وردي غامق', hex: '#f43f5e' },
+    { value: 'teal', label: 'زيتي', hex: '#14b8a6' },
     { value: 'orange', label: 'برتقالي', hex: '#f97316' },
-    { value: 'gray',   label: 'رمادي',   hex: '#6b7280' },
+    { value: 'gray', label: 'رمادي', hex: '#6b7280' },
 ];
 
 const ICON_OPTIONS = [
@@ -42,35 +42,35 @@ const ICON_OPTIONS = [
 ];
 
 const EMPTY_FORM = {
-    name:          '',
-    description:   '',
-    color:         'blue',
-    icon_name:     'Stethoscope',
+    name: '',
+    description: '',
+    color: 'blue',
+    icon_name: 'Stethoscope',
     clinic_number: '',
-    sort_order:    10,
+    sort_order: 10,
 };
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function ClinicsAdmin() {
-    const [clinics,  setClinics]  = useState([]);
-    const [loading,  setLoading]  = useState(true);
-    const [search,   setSearch]   = useState('');
+    const [clinics, setClinics] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [search, setSearch] = useState('');
 
     // Panel
     const [panelOpen, setPanelOpen] = useState(false);
-    const [editId,    setEditId]    = useState(null);
-    const [form,      setForm]      = useState(EMPTY_FORM);
-    const [saving,    setSaving]    = useState(false);
+    const [editId, setEditId] = useState(null);
+    const [form, setForm] = useState(EMPTY_FORM);
+    const [saving, setSaving] = useState(false);
     const [saveError, setSaveError] = useState('');
 
     // Inline services (only when editing)
-    const [services,     setServices]     = useState([]);
+    const [services, setServices] = useState([]);
     const [serviceInput, setServiceInput] = useState('');
     const [addingService, setAddingService] = useState(false);
 
     // Delete dialog
     const [deleteTarget, setDeleteTarget] = useState(null);
-    const [deleting,     setDeleting]     = useState(false);
+    const [deleting, setDeleting] = useState(false);
 
     // ── Fetch ──────────────────────────────────────────────────────────────────
     const fetchClinics = useCallback(async () => {
@@ -95,12 +95,12 @@ export default function ClinicsAdmin() {
     const openEdit = async (clinic) => {
         setEditId(clinic.id);
         setForm({
-            name:          clinic.name           ?? '',
-            description:   clinic.description    ?? '',
-            color:         clinic.color          ?? 'blue',
-            icon_name:     clinic.icon_name      ?? 'Stethoscope',
-            clinic_number: clinic.clinic_number  ?? '',
-            sort_order:    clinic.sort_order     ?? 10,
+            name: clinic.name ?? '',
+            description: clinic.description ?? '',
+            color: clinic.color ?? 'blue',
+            icon_name: clinic.icon_name ?? 'Stethoscope',
+            clinic_number: clinic.clinic_number ?? '',
+            sort_order: clinic.sort_order ?? 10,
         });
         setServiceInput('');
         setSaveError('');
@@ -112,7 +112,7 @@ export default function ClinicsAdmin() {
     };
 
     const closePanel = () => { setPanelOpen(false); setSaveError(''); setServices([]); };
-    const setField   = (k, v) => setForm(f => ({ ...f, [k]: v }));
+    const setField = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
     // ── Services inline CRUD ───────────────────────────────────────────────────
     const handleAddService = async () => {
@@ -140,12 +140,12 @@ export default function ClinicsAdmin() {
         setSaving(true);
         try {
             const payload = {
-                name:          form.name.trim(),
-                description:   form.description.trim() || null,
-                color:         form.color,
-                icon_name:     form.icon_name,
+                name: form.name.trim(),
+                description: form.description.trim() || null,
+                color: form.color,
+                icon_name: form.icon_name,
                 clinic_number: form.clinic_number || null,
-                sort_order:    Number(form.sort_order) || 10,
+                sort_order: Number(form.sort_order) || 10,
             };
 
             if (editId) {

@@ -125,7 +125,7 @@ function App() {
       <Routes>
 
         {/* ── Auth routes (no Navbar/Footer) ────────────────────────────── */}
-        <Route path="/login"    element={<Login />} />
+        <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
         {/* ── Patient dashboard (protected) ─────────────────────────────── */}
@@ -149,36 +149,37 @@ function App() {
         >
           <Route index element={<AdminOverview />} />
           <Route path="appointments" element={<AppointmentsAdmin />} />
-          <Route path="finance"      element={<AdminStub title="المالية" />} />
-          <Route path="cms/blog"     element={<BlogCMS />} />
-          <Route path="cms/clinics"  element={<ClinicsAdmin />} />
-          <Route path="cms/labs"     element={<LabTestsCMS />} />
+          <Route path="finance" element={<AdminStub title="المالية" />} />
+          <Route path="cms/blog" element={<BlogCMS />} />
+          <Route path="cms/clinics" element={<ClinicsAdmin />} />
+          <Route path="cms/labs" element={<LabTestsCMS />} />
           <Route path="cms/packages" element={<PackagesCMS />} />
-          <Route path="doctors"      element={<DoctorsAdmin />} />
-          <Route path="users"        element={<AdminStub title="إدارة المستخدمين" />} />
-          <Route path="gateways"  element={<PaymentGatewaysCMS />} />
-          <Route path="settings"  element={<SettingsCMS />} />
+          <Route path="doctors" element={<DoctorsAdmin />} />
+          <Route path="users" element={<AdminStub title="إدارة المستخدمين" />} />
+          <Route path="gateways" element={<PaymentGatewaysCMS />} />
+          <Route path="settings" element={<SettingsCMS />} />
+          <Route path="cms/scans" element={<ScansAdmin />} />
         </Route>
 
         {/* ── Public routes (stable PublicLayout parent — NEVER remounts) ── */}
         <Route element={<PublicLayout />}>
-          <Route path="/"                          element={<Home />} />
-          <Route path="/doctors"                   element={<Doctors />} />
-          <Route path="/doctors/:id"               element={<DoctorDetails />} />
-          <Route path="/scans"                     element={<Scans />} />
-          <Route path="/scans/:id"                 element={<ScanDetails />} />
-          <Route path="/clinics"                   element={<Clinics />} />
-          <Route path="/clinics/:id"               element={<ClinicDetails />} />
-          <Route path="/examinations"              element={<Examinations />} />
-          <Route path="/examinations/:id"          element={<ExaminationDetails />} />
-          <Route path="/examinations/all-tests"    element={<AllTests />} />
-          <Route path="/examinations/packages"     element={<Packages />} />
+          <Route path="/" element={<Home />} />
+          <Route path="/doctors" element={<Doctors />} />
+          <Route path="/doctors/:id" element={<DoctorDetails />} />
+          <Route path="/scans" element={<Scans />} />
+          <Route path="/scans/:id" element={<ScanDetails />} />
+          <Route path="/clinics" element={<Clinics />} />
+          <Route path="/clinics/:id" element={<ClinicDetails />} />
+          <Route path="/examinations" element={<Examinations />} />
+          <Route path="/examinations/:id" element={<ExaminationDetails />} />
+          <Route path="/examinations/all-tests" element={<AllTests />} />
+          <Route path="/examinations/packages" element={<Packages />} />
           <Route path="/examinations/packages/:id" element={<PackageDetails />} />
-          <Route path="/equipments/:id"            element={<EquipmentDetails />} />
-          <Route path="/blog"                      element={<Blog />} />
-          <Route path="/blog/:id"                  element={<BlogDetails />} />
-          <Route path="/about"                     element={<About />} />
-          <Route path="/checkout"                  element={<Checkout />} />
+          <Route path="/equipments/:id" element={<EquipmentDetails />} />
+          <Route path="/blog" element={<Blog />} />
+          <Route path="/blog/:id" element={<BlogDetails />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/checkout" element={<Checkout />} />
         </Route>
 
       </Routes>

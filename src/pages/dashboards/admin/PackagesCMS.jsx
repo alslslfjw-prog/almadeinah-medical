@@ -64,17 +64,17 @@ function DeleteModal({ name, onConfirm, onCancel, busy }) {
 
 export default function PackagesCMS() {
     const [packages, setPackages] = useState([]);
-    const [loading,  setLoading]  = useState(true);
-    const [search,   setSearch]   = useState('');
-    const [open,     setOpen]     = useState(false);
-    const [editId,   setEditId]   = useState(null);
-    const [form,     setForm]     = useState(EMPTY);
-    const [imgFile,  setImgFile]  = useState(null);
-    const [imgPrev,  setImgPrev]  = useState('');
-    const [saving,   setSaving]   = useState(false);
-    const [err,      setErr]      = useState('');
-    const [delItem,  setDelItem]  = useState(null);
-    const [delBusy,  setDelBusy]  = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [search, setSearch] = useState('');
+    const [open, setOpen] = useState(false);
+    const [editId, setEditId] = useState(null);
+    const [form, setForm] = useState(EMPTY);
+    const [imgFile, setImgFile] = useState(null);
+    const [imgPrev, setImgPrev] = useState('');
+    const [saving, setSaving] = useState(false);
+    const [err, setErr] = useState('');
+    const [delItem, setDelItem] = useState(null);
+    const [delBusy, setDelBusy] = useState(false);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -85,21 +85,21 @@ export default function PackagesCMS() {
 
     useEffect(() => { load(); }, [load]);
 
-    const openAdd  = () => { setEditId(null); setForm(EMPTY); setImgFile(null); setImgPrev(''); setErr(''); setOpen(true); };
+    const openAdd = () => { setEditId(null); setForm(EMPTY); setImgFile(null); setImgPrev(''); setErr(''); setOpen(true); };
     const openEdit = p => {
         setEditId(p.id);
         setForm({
             title: p.title ?? '', description: p.description ?? '',
             price: p.price ?? '', tests_count: p.tests_count ?? '',
             discount_text: p.discount_text ?? '', detailed_prep: p.detailed_prep ?? '',
-            features:       Array.isArray(p.features)       ? p.features       : [],
+            features: Array.isArray(p.features) ? p.features : [],
             tests_included: Array.isArray(p.tests_included) ? p.tests_included : [],
             image_url: p.image_url ?? '',
         });
         setImgFile(null); setImgPrev(p.image_url ?? ''); setErr(''); setOpen(true);
     };
-    const closePanel  = () => { setOpen(false); setErr(''); };
-    const setField    = (k, v) => setForm(f => ({ ...f, [k]: v }));
+    const closePanel = () => { setOpen(false); setErr(''); };
+    const setField = (k, v) => setForm(f => ({ ...f, [k]: v }));
     const onImgChange = e => { const f = e.target.files?.[0]; if (!f) return; setImgFile(f); setImgPrev(URL.createObjectURL(f)); };
 
     const handleSave = async () => {
@@ -114,15 +114,15 @@ export default function PackagesCMS() {
                 imageUrl = url;
             }
             const payload = {
-                title:          form.title.trim(),
-                description:    form.description.trim()    || null,
-                price:          form.price !== ''          ? Number(form.price)       : null,
-                tests_count:    form.tests_count !== ''    ? Number(form.tests_count) : null,
-                discount_text:  form.discount_text.trim()  || null,
-                detailed_prep:  form.detailed_prep.trim()  || null,
-                features:       form.features.length       ? form.features       : null,
+                title: form.title.trim(),
+                description: form.description.trim() || null,
+                price: form.price !== '' ? Number(form.price) : null,
+                tests_count: form.tests_count !== '' ? Number(form.tests_count) : null,
+                discount_text: form.discount_text.trim() || null,
+                detailed_prep: form.detailed_prep.trim() || null,
+                features: form.features.length ? form.features : null,
                 tests_included: form.tests_included.length ? form.tests_included : null,
-                image_url:      imageUrl                   || null,
+                image_url: imageUrl || null,
             };
             const { error } = editId ? await updatePackage(editId, payload) : await createPackage(payload);
             if (error) { setErr(error.message); return; }

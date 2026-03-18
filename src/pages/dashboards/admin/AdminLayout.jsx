@@ -15,7 +15,7 @@ import {
     BookOpen, Users, Stethoscope, CreditCard,
     ChevronRight, ChevronLeft, Menu, X, LogOut,
     Newspaper, FlaskConical, Package, Building2, Star,
-    ShieldCheck, Settings
+    ShieldCheck, Settings, ScanLine
 } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
 import useAuthStore from '../../../store/authStore';
@@ -47,6 +47,7 @@ const NAV_ITEMS = [
             { label: 'العيادات', icon: Building2, to: '/dashboard/admin/cms/clinics' },
             { label: 'الفحوصات', icon: FlaskConical, to: '/dashboard/admin/cms/labs' },
             { label: 'الباقات', icon: Package, to: '/dashboard/admin/cms/packages' },
+            { label: 'الأشعة التشخيصية', icon: ScanLine, to: '/dashboard/admin/cms/scans' },
         ],
     },
     {

@@ -29,40 +29,40 @@ const PROTECTED_PROVIDERS = ['cash', 'bank_transfer'];
 
 // ── Blank form state ──────────────────────────────────────────────────────────
 const BLANK = {
-  name_ar:     '',
-  name_en:     '',
+  name_ar: '',
+  name_en: '',
   provider_id: '',
-  type:        'manual',
-  sort_order:  10,
-  is_active:   true,
+  type: 'manual',
+  sort_order: 10,
+  is_active: true,
   // manual config fields
   instructions_ar: '',
-  account_number:  '',
-  bank_name:       '',
+  account_number: '',
+  bank_name: '',
   // api config fields
-  public_key:   '',
-  webhook_url:  '',
+  public_key: '',
+  webhook_url: '',
 };
 
 function formToPayload(form) {
   const config = form.type === 'manual'
     ? {
-        instructions_ar: form.instructions_ar || null,
-        account_number:  form.account_number  || null,
-        bank_name:       form.bank_name        || null,
-      }
+      instructions_ar: form.instructions_ar || null,
+      account_number: form.account_number || null,
+      bank_name: form.bank_name || null,
+    }
     : {
-        public_key:  form.public_key  || null,
-        webhook_url: form.webhook_url || null,
-      };
+      public_key: form.public_key || null,
+      webhook_url: form.webhook_url || null,
+    };
 
   return {
-    name_ar:     form.name_ar.trim(),
-    name_en:     form.name_en.trim() || null,
+    name_ar: form.name_ar.trim(),
+    name_en: form.name_en.trim() || null,
     provider_id: form.provider_id.trim().toLowerCase().replace(/\s+/g, '_'),
-    type:        form.type,
-    sort_order:  Number(form.sort_order) || 0,
-    is_active:   form.is_active,
+    type: form.type,
+    sort_order: Number(form.sort_order) || 0,
+    is_active: form.is_active,
     config,
   };
 }
@@ -70,17 +70,17 @@ function formToPayload(form) {
 function payloadToForm(method) {
   const c = method.config ?? {};
   return {
-    name_ar:         method.name_ar     ?? '',
-    name_en:         method.name_en     ?? '',
-    provider_id:     method.provider_id ?? '',
-    type:            method.type        ?? 'manual',
-    sort_order:      method.sort_order  ?? 0,
-    is_active:       method.is_active   ?? true,
-    instructions_ar: c.instructions_ar  ?? '',
-    account_number:  c.account_number   ?? '',
-    bank_name:       c.bank_name        ?? '',
-    public_key:      c.public_key       ?? '',
-    webhook_url:     c.webhook_url      ?? '',
+    name_ar: method.name_ar ?? '',
+    name_en: method.name_en ?? '',
+    provider_id: method.provider_id ?? '',
+    type: method.type ?? 'manual',
+    sort_order: method.sort_order ?? 0,
+    is_active: method.is_active ?? true,
+    instructions_ar: c.instructions_ar ?? '',
+    account_number: c.account_number ?? '',
+    bank_name: c.bank_name ?? '',
+    public_key: c.public_key ?? '',
+    webhook_url: c.webhook_url ?? '',
   };
 }
 
@@ -93,15 +93,15 @@ function TypeBadge({ type }) {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function PaymentGatewaysCMS() {
-  const [methods,     setMethods]     = useState([]);
-  const [loading,     setLoading]     = useState(true);
-  const [panelOpen,   setPanelOpen]   = useState(false);
-  const [editTarget,  setEditTarget]  = useState(null); // null = new
-  const [form,        setForm]        = useState(BLANK);
-  const [saving,      setSaving]      = useState(false);
-  const [saveError,   setSaveError]   = useState('');
-  const [togglingId,  setTogglingId]  = useState(null);
-  const [deletingId,  setDeletingId]  = useState(null);
+  const [methods, setMethods] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState(null); // null = new
+  const [form, setForm] = useState(BLANK);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [togglingId, setTogglingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
   // ── Fetch ────────────────────────────────────────────────────────────────
@@ -206,16 +206,14 @@ export default function PaymentGatewaysCMS() {
             return (
               <div
                 key={m.id}
-                className={`bg-white rounded-2xl border shadow-sm p-5 flex flex-col gap-4 transition-all duration-200 ${
-                  m.is_active ? 'border-slate-100' : 'border-dashed border-slate-200 opacity-60'
-                }`}
+                className={`bg-white rounded-2xl border shadow-sm p-5 flex flex-col gap-4 transition-all duration-200 ${m.is_active ? 'border-slate-100' : 'border-dashed border-slate-200 opacity-60'
+                  }`}
               >
                 {/* Card header */}
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                      m.type === 'api' ? 'bg-blue-50' : 'bg-teal-50'
-                    }`}>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${m.type === 'api' ? 'bg-blue-50' : 'bg-teal-50'
+                      }`}>
                       {m.type === 'api'
                         ? <Wifi size={18} className="text-blue-500" />
                         : <CreditCard size={18} className="text-teal-500" />}
@@ -236,7 +234,7 @@ export default function PaymentGatewaysCMS() {
                       ? <Loader2 size={22} className="animate-spin text-slate-400" />
                       : m.is_active
                         ? <ToggleRight size={26} className="text-teal-500" />
-                        : <ToggleLeft  size={26} className="text-slate-300" />}
+                        : <ToggleLeft size={26} className="text-slate-300" />}
                   </button>
                 </div>
 
@@ -277,11 +275,10 @@ export default function PaymentGatewaysCMS() {
                     onClick={() => !isProtected && setDeleteTarget(m)}
                     disabled={isProtected}
                     title={isProtected ? 'هذا المزود مدمج في نظام الحجز ولا يمكن حذفه' : 'حذف'}
-                    className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg transition ${
-                      isProtected
+                    className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg transition ${isProtected
                         ? 'text-slate-200 cursor-not-allowed'
                         : 'text-slate-500 hover:text-red-600 hover:bg-red-50'
-                    }`}
+                      }`}
                   >
                     <Trash2 size={13} /> حذف
                   </button>
@@ -363,17 +360,16 @@ export default function PaymentGatewaysCMS() {
                 <div className="grid grid-cols-2 gap-3">
                   {[
                     { val: 'manual', icon: Building2, label: 'يدوي', sub: 'كاش / تحويل بنكي' },
-                    { val: 'api',    icon: Wifi,      label: 'API',  sub: 'Stripe / بوابة إلكترونية' },
+                    { val: 'api', icon: Wifi, label: 'API', sub: 'Stripe / بوابة إلكترونية' },
                   ].map(({ val, icon: Icon, label, sub }) => (
                     <button
                       key={val}
                       type="button"
                       onClick={() => setField('type', val)}
-                      className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition text-center ${
-                        form.type === val
+                      className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition text-center ${form.type === val
                           ? 'border-teal-500 bg-teal-50'
                           : 'border-slate-100 hover:border-slate-200'
-                      }`}
+                        }`}
                     >
                       <Icon size={20} className={form.type === val ? 'text-teal-600' : 'text-slate-400'} />
                       <span className={`font-bold text-sm ${form.type === val ? 'text-teal-800' : 'text-slate-600'}`}>{label}</span>
@@ -465,7 +461,7 @@ export default function PaymentGatewaysCMS() {
                 >
                   {form.is_active
                     ? <ToggleRight size={28} className="text-teal-500" />
-                    : <ToggleLeft  size={28} className="text-slate-300" />}
+                    : <ToggleLeft size={28} className="text-slate-300" />}
                 </button>
               </div>
 

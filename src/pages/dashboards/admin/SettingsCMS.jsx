@@ -15,17 +15,17 @@ export default function SettingsCMS() {
   const [loading, setLoading] = useState(true);
 
   // ── WhatsApp state ──────────────────────────────────────────────────────────
-  const [whatsappNumber,   setWhatsappNumber]   = useState('');
+  const [whatsappNumber, setWhatsappNumber] = useState('');
   const [isWhatsappActive, setIsWhatsappActive] = useState(true);
-  const [savingWa,         setSavingWa]         = useState(false);
-  const [savedWa,          setSavedWa]          = useState(false);
-  const [errorWa,          setErrorWa]          = useState('');
+  const [savingWa, setSavingWa] = useState(false);
+  const [savedWa, setSavedWa] = useState(false);
+  const [errorWa, setErrorWa] = useState('');
 
   // ── Exchange rate state ─────────────────────────────────────────────────────
   const [usdToYerRate, setUsdToYerRate] = useState(800);
-  const [savingRate,   setSavingRate]   = useState(false);
-  const [savedRate,    setSavedRate]    = useState(false);
-  const [errorRate,    setErrorRate]    = useState('');
+  const [savingRate, setSavingRate] = useState(false);
+  const [savedRate, setSavedRate] = useState(false);
+  const [errorRate, setErrorRate] = useState('');
 
   // ── Boot ────────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -45,7 +45,7 @@ export default function SettingsCMS() {
     setSavingWa(true); setErrorWa(''); setSavedWa(false);
 
     const { error: err } = await updateSiteSettings({
-      whatsapp_number:    whatsappNumber.trim().replace(/\D/g, ''),
+      whatsapp_number: whatsappNumber.trim().replace(/\D/g, ''),
       is_whatsapp_active: isWhatsappActive,
     });
 
@@ -110,14 +110,13 @@ export default function SettingsCMS() {
           >
             {isWhatsappActive
               ? <ToggleRight size={30} className="text-teal-500" />
-              : <ToggleLeft  size={30} className="text-slate-300" />}
+              : <ToggleLeft size={30} className="text-slate-300" />}
           </button>
         </div>
 
         {/* Status pill */}
-        <div className={`inline-flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-full ${
-          isWhatsappActive ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'
-        }`}>
+        <div className={`inline-flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-full ${isWhatsappActive ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'
+          }`}>
           <span className={`w-2 h-2 rounded-full ${isWhatsappActive ? 'bg-green-500' : 'bg-slate-400'}`} />
           {isWhatsappActive ? 'الزر مفعّل — يظهر للزوار' : 'الزر معطّل — مخفي عن الزوار'}
         </div>
@@ -143,7 +142,7 @@ export default function SettingsCMS() {
             <p className="text-xs text-slate-400 mt-2">
               رابط الزر:{'  '}
               <a href={`https://wa.me/${whatsappNumber}`} target="_blank" rel="noopener noreferrer"
-                 className="text-teal-600 hover:underline font-mono">
+                className="text-teal-600 hover:underline font-mono">
                 https://wa.me/{whatsappNumber}
               </a>
             </p>

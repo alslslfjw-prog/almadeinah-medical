@@ -93,14 +93,14 @@ export default function BlogCMS() {
 
         setEditId(full.id);
         setForm({
-            title:       full.title       ?? '',
-            excerpt:     full.excerpt     ?? '',
-            content:     full.content     ?? '',
-            category:    full.category    ?? CATEGORIES[0],
-            image_url:   full.image_url   ?? '',
-            read_time:   full.read_time   ?? '',
-            author:      full.author      ?? '',
-            icon_name:   full.icon_name   ?? 'Activity',
+            title: full.title ?? '',
+            excerpt: full.excerpt ?? '',
+            content: full.content ?? '',
+            category: full.category ?? CATEGORIES[0],
+            image_url: full.image_url ?? '',
+            read_time: full.read_time ?? '',
+            author: full.author ?? '',
+            icon_name: full.icon_name ?? 'Activity',
         });
         setSaveError('');
         setPanelOpen(true);

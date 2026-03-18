@@ -60,14 +60,14 @@ function DeleteModal({ name, onConfirm, onCancel, busy }) {
 }
 
 export default function LabTestsCMS() {
-    const [tests,   setTests]   = useState([]);
+    const [tests, setTests] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [search,  setSearch]  = useState('');
-    const [open,    setOpen]    = useState(false);
-    const [editId,  setEditId]  = useState(null);
-    const [form,    setForm]    = useState(EMPTY);
-    const [saving,  setSaving]  = useState(false);
-    const [err,     setErr]     = useState('');
+    const [search, setSearch] = useState('');
+    const [open, setOpen] = useState(false);
+    const [editId, setEditId] = useState(null);
+    const [form, setForm] = useState(EMPTY);
+    const [saving, setSaving] = useState(false);
+    const [err, setErr] = useState('');
     const [delItem, setDelItem] = useState(null);
     const [delBusy, setDelBusy] = useState(false);
 
@@ -80,14 +80,14 @@ export default function LabTestsCMS() {
 
     useEffect(() => { load(); }, [load]);
 
-    const openAdd  = () => { setEditId(null); setForm(EMPTY); setErr(''); setOpen(true); };
+    const openAdd = () => { setEditId(null); setForm(EMPTY); setErr(''); setOpen(true); };
     const openEdit = t => {
         setEditId(t.id);
         setForm({ name: t.name ?? '', category: t.category ?? '', about: t.about ?? '', reasons: Array.isArray(t.reasons) ? t.reasons : [], prep: t.prep ?? '', price: t.price ?? 0 });
         setErr(''); setOpen(true);
     };
     const closePanel = () => { setOpen(false); setErr(''); };
-    const setField   = (k, v) => setForm(f => ({ ...f, [k]: v }));
+    const setField = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
     const handleSave = async () => {
         setErr('');
@@ -95,12 +95,12 @@ export default function LabTestsCMS() {
         setSaving(true);
         try {
             const payload = {
-                name:     form.name.trim(),
+                name: form.name.trim(),
                 category: form.category.trim() || null,
-                about:    form.about.trim()    || null,
-                reasons:  form.reasons.length  ? form.reasons : null,
-                prep:     form.prep.trim()     || null,
-                price:    form.price !== '' ? Number(form.price) : 0,
+                about: form.about.trim() || null,
+                reasons: form.reasons.length ? form.reasons : null,
+                prep: form.prep.trim() || null,
+                price: form.price !== '' ? Number(form.price) : 0,
             };
             const { error } = editId ? await updateTestGuide(editId, payload) : await createTestGuide(payload);
             if (error) { setErr(error.message); return; }

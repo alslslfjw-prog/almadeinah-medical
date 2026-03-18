@@ -82,14 +82,14 @@ export default function AdminOverview() {
   // Recent pending
   const [recent, setRecent] = useState([]);
   // Loading / confirmLoading
-  const [loading, setLoading]           = useState(true);
+  const [loading, setLoading] = useState(true);
   const [confirmingId, setConfirmingId] = useState(null);
 
   // ── Single parallel fetch on mount ─────────────────────────────────────────
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const today   = todayISO();
+      const today = todayISO();
       const since7d = sevenDaysAgo();
 
       const [
@@ -118,11 +118,11 @@ export default function AdminOverview() {
       ]);
 
       setKpi({
-        pending:  pendingRes.count  ?? 0,
-        today:    todayRes.count    ?? 0,
-        doctors:  doctorsRes.count  ?? 0,
-        clinics:  clinicsRes.count  ?? 0,
-        blogs:    blogsRes.count    ?? 0,
+        pending: pendingRes.count ?? 0,
+        today: todayRes.count ?? 0,
+        doctors: doctorsRes.count ?? 0,
+        clinics: clinicsRes.count ?? 0,
+        blogs: blogsRes.count ?? 0,
       });
       setChartData(buildChartData(chartRes.data));
       setRecent(recentRes.data ?? []);
@@ -147,46 +147,46 @@ export default function AdminOverview() {
       label: 'قيد الانتظار',
       value: kpi.pending,
       icon: Clock,
-      color:  'text-amber-500',
-      bg:     'bg-amber-50',
+      color: 'text-amber-500',
+      bg: 'bg-amber-50',
       border: 'hover:border-amber-300',
-      route:  '/dashboard/admin/appointments',
+      route: '/dashboard/admin/appointments',
     },
     {
       label: 'مواعيد اليوم',
       value: kpi.today,
       icon: CalendarCheck,
-      color:  'text-blue-500',
-      bg:     'bg-blue-50',
+      color: 'text-blue-500',
+      bg: 'bg-blue-50',
       border: 'hover:border-blue-300',
-      route:  '/dashboard/admin/appointments',
+      route: '/dashboard/admin/appointments',
     },
     {
       label: 'الأطباء',
       value: kpi.doctors,
       icon: Stethoscope,
-      color:  'text-teal-500',
-      bg:     'bg-teal-50',
+      color: 'text-teal-500',
+      bg: 'bg-teal-50',
       border: 'hover:border-teal-300',
-      route:  '/dashboard/admin/doctors',
+      route: '/dashboard/admin/doctors',
     },
     {
       label: 'العيادات',
       value: kpi.clinics,
       icon: Building2,
-      color:  'text-purple-500',
-      bg:     'bg-purple-50',
+      color: 'text-purple-500',
+      bg: 'bg-purple-50',
       border: 'hover:border-purple-300',
-      route:  '/dashboard/admin/cms/clinics',
+      route: '/dashboard/admin/cms/clinics',
     },
     {
       label: 'المقالات',
       value: kpi.blogs,
       icon: BookOpen,
-      color:  'text-rose-500',
-      bg:     'bg-rose-50',
+      color: 'text-rose-500',
+      bg: 'bg-rose-50',
       border: 'hover:border-rose-300',
-      route:  '/dashboard/admin/cms/blog',
+      route: '/dashboard/admin/cms/blog',
     },
   ];
 
@@ -244,12 +244,12 @@ export default function AdminOverview() {
               <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
                 <defs>
                   <linearGradient id="gradTotal" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="#14b8a6" stopOpacity={0.25} />
-                    <stop offset="95%" stopColor="#14b8a6" stopOpacity={0}     />
+                    <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#14b8a6" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="gradPending" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="#f59e0b" stopOpacity={0.25} />
-                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}     />
+                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />

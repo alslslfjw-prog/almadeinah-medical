@@ -14,17 +14,17 @@ import {
 
 // ── Empty form ────────────────────────────────────────────────────────────────
 const EMPTY_FORM = {
-    name:              '',
+    name: '',
     short_description: '',
-    description:       '',
-    price:             '',
-    duration:          '',
-    icon_class:        'fas fa-x-ray',
-    uses:              [],   // jsonb array
-    advantages:        [],   // jsonb array
-    preparation:       '',
-    benefits:          '',
-    image_url:         '',
+    description: '',
+    price: '',
+    duration: '',
+    icon_class: 'fas fa-x-ray',
+    uses: [],   // jsonb array
+    advantages: [],   // jsonb array
+    preparation: '',
+    benefits: '',
+    image_url: '',
 };
 
 // ── Chip editor sub-component ─────────────────────────────────────────────────
@@ -66,22 +66,22 @@ function ChipEditor({ label, chips, onChange }) {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function ScansAdmin() {
-    const [scans,    setScans]    = useState([]);
-    const [loading,  setLoading]  = useState(true);
-    const [search,   setSearch]   = useState('');
+    const [scans, setScans] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [search, setSearch] = useState('');
 
     // Panel
-    const [panelOpen,   setPanelOpen]   = useState(false);
-    const [editId,      setEditId]      = useState(null);
-    const [form,        setForm]        = useState(EMPTY_FORM);
-    const [imageFile,   setImageFile]   = useState(null);
-    const [imagePreview,setImagePreview]= useState('');
-    const [saving,      setSaving]      = useState(false);
-    const [saveError,   setSaveError]   = useState('');
+    const [panelOpen, setPanelOpen] = useState(false);
+    const [editId, setEditId] = useState(null);
+    const [form, setForm] = useState(EMPTY_FORM);
+    const [imageFile, setImageFile] = useState(null);
+    const [imagePreview, setImagePreview] = useState('');
+    const [saving, setSaving] = useState(false);
+    const [saveError, setSaveError] = useState('');
 
     // Delete
     const [deleteTarget, setDeleteTarget] = useState(null);
-    const [deleting,     setDeleting]     = useState(false);
+    const [deleting, setDeleting] = useState(false);
 
     // ── Fetch ──────────────────────────────────────────────────────────────────
     const fetchAll = useCallback(async () => {
@@ -100,24 +100,24 @@ export default function ScansAdmin() {
     const openEdit = (scan) => {
         setEditId(scan.id);
         setForm({
-            name:              scan.name              ?? '',
+            name: scan.name ?? '',
             short_description: scan.short_description ?? '',
-            description:       scan.description       ?? '',
-            price:             scan.price             ?? '',
-            duration:          scan.duration          ?? '',
-            icon_class:        scan.icon_class         ?? 'fas fa-x-ray',
-            uses:              Array.isArray(scan.uses)       ? scan.uses       : [],
-            advantages:        Array.isArray(scan.advantages) ? scan.advantages : [],
-            preparation:       scan.preparation       ?? '',
-            benefits:          scan.benefits          ?? '',
-            image_url:         scan.image_url         ?? '',
+            description: scan.description ?? '',
+            price: scan.price ?? '',
+            duration: scan.duration ?? '',
+            icon_class: scan.icon_class ?? 'fas fa-x-ray',
+            uses: Array.isArray(scan.uses) ? scan.uses : [],
+            advantages: Array.isArray(scan.advantages) ? scan.advantages : [],
+            preparation: scan.preparation ?? '',
+            benefits: scan.benefits ?? '',
+            image_url: scan.image_url ?? '',
         });
         setImageFile(null);
         setImagePreview(scan.image_url ?? '');
         setSaveError(''); setPanelOpen(true);
     };
     const closePanel = () => { setPanelOpen(false); setSaveError(''); };
-    const setField   = (k, v) => setForm(f => ({ ...f, [k]: v }));
+    const setField = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
     // ── Image ─────────────────────────────────────────────────────────────────
     const handleImageChange = (e) => {
@@ -140,17 +140,17 @@ export default function ScansAdmin() {
                 imageUrl = url;
             }
             const payload = {
-                name:              form.name.trim(),
+                name: form.name.trim(),
                 short_description: form.short_description.trim() || null,
-                description:       form.description.trim()       || null,
-                price:             form.price !== '' ? Number(form.price) : null,
-                duration:          form.duration.trim()          || null,
-                icon_class:        form.icon_class.trim()        || null,
-                uses:              form.uses.length       ? form.uses       : null,
-                advantages:        form.advantages.length ? form.advantages : null,
-                preparation:       form.preparation.trim()       || null,
-                benefits:          form.benefits.trim()          || null,
-                image_url:         imageUrl                      || null,
+                description: form.description.trim() || null,
+                price: form.price !== '' ? Number(form.price) : null,
+                duration: form.duration.trim() || null,
+                icon_class: form.icon_class.trim() || null,
+                uses: form.uses.length ? form.uses : null,
+                advantages: form.advantages.length ? form.advantages : null,
+                preparation: form.preparation.trim() || null,
+                benefits: form.benefits.trim() || null,
+                image_url: imageUrl || null,
             };
             if (editId) {
                 const { error } = await updateScan(editId, payload);
@@ -224,7 +224,7 @@ export default function ScansAdmin() {
                                         <p className="font-semibold text-slate-800">{scan.name}</p>
                                         {scan.short_description && <p className="text-xs text-slate-400 truncate max-w-xs">{scan.short_description}</p>}
                                     </td>
-                                    <td className="px-4 py-3 text-slate-600">{scan.price ? `${Number(scan.price).toLocaleString('ar-YE')} ر.ي` : '—'}</td>
+                                    <td className="px-4 py-3 text-slate-600 font-medium">{scan.price && Number(scan.price) > 0 ? `$ ${Number(scan.price).toLocaleString('en-US')}` : '—'}</td>
                                     <td className="px-4 py-3 text-slate-500">{scan.duration ?? '—'}</td>
                                     <td className="px-4 py-3">
                                         <div className="flex gap-2 justify-center">
@@ -283,9 +283,9 @@ export default function ScansAdmin() {
                             {/* Price + Duration */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 mb-1">السعر (ريال)</label>
-                                    <input type="number" value={form.price} onChange={e => setField('price', e.target.value)}
-                                        className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-slate-50" placeholder="5000" />
+                                    <label className="block text-xs font-bold text-slate-500 mb-1">سعر الأشعة (دولار أمريكي $)</label>
+                                    <input type="number" min="0" value={form.price} onChange={e => setField('price', e.target.value)}
+                                        className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-slate-50" placeholder="0" />
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 mb-1">المدة</label>

@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { useSiteSettings } from '../hooks/useSiteSettings';
 
 export default function ScanDetails() {
   const { id } = useParams();
   const [scan, setScan] = useState(null);
   const [loading, setLoading] = useState(true);
+  const siteSettings = useSiteSettings();
 
   // --- NEW: Form State for Booking ---
   const [bookingForm, setBookingForm] = useState({ name: '', phone: '' });
@@ -115,10 +117,20 @@ export default function ScanDetails() {
             {/* --- RIGHT COLUMN (Booking Card - Sticky) --- */}
             <div className="lg:col-span-1 order-2 lg:order-1">
                 <div className="bg-white rounded-3xl shadow-xl p-6 border border-gray-100 sticky top-24">
-                    <h3 className="text-xl font-bold text-gray-800 mb-6 border-b border-gray-100 pb-4">
+                    <h3 className="text-xl font-bold text-gray-800 mb-4 border-b border-gray-100 pb-4">
                         حجز هذا الفحص
                     </h3>
-                    
+
+                    {/* Price Badge */}
+                    {scan.price > 0 && siteSettings?.usd_to_yer_rate > 0 && (
+                        <div className="bg-teal-50 border border-teal-100 rounded-xl px-4 py-3 mb-4 flex items-center justify-between">
+                            <span className="text-sm font-bold text-teal-700">سعر الفحص</span>
+                            <span className="text-sm font-bold text-teal-600 font-mono">
+                                {Math.round(scan.price * siteSettings.usd_to_yer_rate).toLocaleString('ar-YE')} ر.ي
+                            </span>
+                        </div>
+                    )}
+
                     <div className="space-y-4">
                         <div className="bg-blue-50 p-4 rounded-xl text-blue-800 text-sm mb-2">
                             <i className="fas fa-info-circle ml-2"></i>
