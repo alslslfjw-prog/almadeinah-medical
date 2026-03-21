@@ -187,7 +187,18 @@ export default function ScanDetails() {
 
             {/* --- LEFT COLUMN (Details) --- */}
             <div className="lg:col-span-2 order-1 lg:order-2 space-y-6">
-                
+
+                {/* 0. Full Description */}
+                {scan.description && (
+                    <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
+                        <h2 className="text-xl font-bold text-blue-900 mb-4 flex items-center gap-2">
+                            <i className="fas fa-info-circle text-blue-500"></i>
+                            عن هذه الأشعة
+                        </h2>
+                        <p className="text-gray-700 leading-relaxed">{scan.description}</p>
+                    </div>
+                )}
+
                 {/* 1. Benefits Section */}
                 {benefitsList.length > 0 && (
                     <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">

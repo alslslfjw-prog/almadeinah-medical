@@ -8,25 +8,16 @@ import { getDoctors } from '../api/doctors';
 import { getClinics } from '../api/clinics';
 import { supabase } from '../lib/supabaseClient';   // only for scans & lab_tests_list (no hooks yet)
 import useAuthStore from '../store/authStore';
+import { useSiteSettings } from '../hooks/useSiteSettings';
 
-// ── Lab packages list unchanged ──────────────────────────────────────────────
-const LAB_PACKAGES = [
-  "الفحص العام", "الفحص العام (رجال) بلس", "الفحص العام (نساء) بلس", "مقاومة الأنسولين",
-  "تحاليل ما قبل الزواج للنساء", "تحاليل ما قبل الزواج للنساء بلس", "النظام الغذائي",
-  "تحاليل هشاشة العظام", "تحاليل الروماتيزم", "تحاليل الغده الدرقيه", "تحاليل الغده الدرقيه بلس",
-  "تحاليل فقر الدم", "تحاليل فقر الدم بلس", "تحاليل الجلد والشعر", "تحاليل غياب الدورة الشهرية",
-  "وظائف الغده النخاميه", "تحاليل تعدد الاكياس", "تحاليل متابعة الحمل",
-  "تحاليل مخاطر الاصابه بالجلطات", "تحاليل التسمم بالحديد", "تحاليل التخطيط للحمل",
-  "تحاليل العقم للرجال+", "تحاليل للنساء عمر اكبر من 45", "تحاليل للرجال عمر اكبر من 45",
-  "تحاليل مرضى السكر", "تحاليل مخاطر الامراض القلبية", "تحاليل دلالات الأورام",
-  "تحاليل الأطفال", "تحاليل الأيض الشامل"
-];
+
 
 export default function AppointmentWidget({ preSelectedDoctor = null }) {
   const navigate = useNavigate();
 
   // ✅ Auth state from Zustand — used to gate the booking action
   const { user, isAuthenticated } = useAuthStore();
+  const siteSettings = useSiteSettings();
 
   const [activeTab, setActiveTab] = useState('clinics');
   const [primaryOptions, setPrimaryOptions] = useState([]);
@@ -40,12 +31,14 @@ export default function AppointmentWidget({ preSelectedDoctor = null }) {
   const [time, setTime] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [selectedItemPriceUSD, setSelectedItemPriceUSD] = useState(0);
+  const [dbPackages, setDbPackages] = useState([]);  // fetched from medical_packages
 
   const tabs = [
     { id: 'clinics', label: 'العيادات', icon: <Stethoscope size={18} />, table: 'clinics' },
     { id: 'doctors', label: 'الأطباء', icon: <User size={18} />, table: 'doctors' },
     { id: 'scans', label: 'المدينة سكان', icon: <Activity size={18} />, table: 'scans' },
-    { id: 'lab', label: 'الفحوصات', icon: <Microscope size={18} />, table: 'lab_tests_list' },
+    { id: 'lab', label: 'الفحوصات', icon: <Microscope size={18} />, table: 'medical_tests_guide' },
   ];
 
   // ── schedule‑aware time helpers ─────────────────────────────────────────────
@@ -73,6 +66,15 @@ export default function AppointmentWidget({ preSelectedDoctor = null }) {
       setSelectedDoctor(preSelectedDoctor);
     }
   }, [preSelectedDoctor]);
+
+  // Fetch lab packages from DB once on mount
+  useEffect(() => {
+    supabase
+      .from('medical_packages')
+      .select('id, title, price')
+      .order('id', { ascending: true })
+      .then(({ data }) => setDbPackages(data ?? []));
+  }, []);
 
   // ── Fetch primary data when tab changes ────────────────────────────────────
   useEffect(() => {
@@ -105,7 +107,7 @@ export default function AppointmentWidget({ preSelectedDoctor = null }) {
           // scans & lab_tests_list — no dedicated API hook yet, use supabaseClient directly
           const table = tabs.find(t => t.id === activeTab)?.table;
           if (!table) return;
-          const { data } = await supabase.from(table).select('name').order('id', { ascending: true });
+          const { data } = await supabase.from(table).select('id, name, price').order('id', { ascending: true });
           setPrimaryOptions(data ?? []);
         }
       } catch (err) {
@@ -135,30 +137,37 @@ export default function AppointmentWidget({ preSelectedDoctor = null }) {
     const source = activeTab === 'doctors' ? primaryOptions : secondaryOptions;
     const doc = source.find(d => d.name === docName) ?? null;
     setSelectedDoctor(doc);
+    setSelectedItemPriceUSD(doc?.price ?? 0);  // capture doctor USD price
     setTime('');
   };
+
+  // Capture price when a scan is selected from the dropdown
+  useEffect(() => {
+    if (activeTab === 'scans') {
+      const item = primaryOptions.find(o => o.name === selectedPrimary);
+      setSelectedItemPriceUSD(item?.price ?? 0);
+    }
+  }, [selectedPrimary, activeTab, primaryOptions]);
 
   const handleAddSingleTest = (testName) => {
     if (!testName) return;
     setLabSelectionType('single');
-    if (!selectedLabItems.includes(testName)) setSelectedLabItems(prev => [...prev, testName]);
+    if (!selectedLabItems.includes(testName)) {
+      setSelectedLabItems(prev => [...prev, testName]);
+      // Price is now derived from the full selectedLabItems array — no scalar tracking needed
+    }
   };
 
   const handleAddPackage = (packageName) => {
     if (!packageName) return;
-    if (labSelectionType === 'single') {
-      setLabSelectionType('package');
-      setSelectedLabItems([packageName]);
-    } else {
-      setLabSelectionType('package');
-      if (!selectedLabItems.includes(packageName)) setSelectedLabItems(prev => [...prev, packageName]);
-    }
+    setLabSelectionType('package');
+    setSelectedLabItems([packageName]);  // always replaces — single selection
   };
 
   const removeLabItem = (item) => {
     const updated = selectedLabItems.filter(i => i !== item);
     setSelectedLabItems(updated);
-    if (updated.length === 0) setLabSelectionType(null);
+    if (updated.length === 0) { setLabSelectionType(null); setSelectedItemPriceUSD(0); }
   };
 
   const renderTimeInput = () => {
@@ -218,6 +227,28 @@ export default function AppointmentWidget({ preSelectedDoctor = null }) {
     );
   };
 
+  // Derived YER price — shown in badge and forwarded to Checkout
+  const priceYER = (() => {
+    const rate = siteSettings?.usd_to_yer_rate ?? 0;
+    if (!rate) return 0;
+    // Multi-test tab: sum prices of ALL selected individual tests dynamically
+    if (activeTab === 'lab' && labSelectionType === 'single') {
+      const totalUSD = selectedLabItems.reduce((sum, name) => {
+        const item = primaryOptions.find(o => o.name === name);
+        return sum + (Number(item?.price) || 0);
+      }, 0);
+      return totalUSD > 0 ? Math.round(totalUSD * rate) : 0;
+    }
+    // Package tab: single-selection — direct lookup of the one selected package
+    if (activeTab === 'lab' && labSelectionType === 'package') {
+      const pkg = dbPackages.find(p => p.title === selectedLabItems[0]);
+      const priceUSD = Number(pkg?.price) || 0;
+      return priceUSD > 0 ? Math.round(priceUSD * rate) : 0;
+    }
+    // Doctors / Scans / Clinics — single scalar state
+    return selectedItemPriceUSD > 0 ? Math.round(selectedItemPriceUSD * rate) : 0;
+  })();
+
   // ── Main booking handler ───────────────────────────────────────────────────
   const handleBookNow = () => {
     setError('');
@@ -258,7 +289,9 @@ export default function AppointmentWidget({ preSelectedDoctor = null }) {
       date,
       time,
       isPackage: labSelectionType === 'package',
-      patientUserId: user?.id ?? null,   // forwarded as a convenience; Checkout also reads authStore
+      patientUserId: user?.id ?? null,
+      priceUSD: selectedItemPriceUSD,
+      priceYER,
     };
     navigate('/checkout', { state: bookingData });
   };
@@ -346,8 +379,8 @@ export default function AppointmentWidget({ preSelectedDoctor = null }) {
                   className={`w-full border py-3.5 px-4 pr-10 rounded-xl focus:outline-none appearance-none transition cursor-pointer font-medium text-sm ${labSelectionType === 'single' ? 'bg-gray-100 border-gray-100 text-gray-400' : 'bg-teal-50 border-teal-100 text-teal-800 focus:ring-2 focus:ring-teal-500'}`}
                 >
                   <option value="">اختر باقة لإضافتها...</option>
-                  {LAB_PACKAGES.map((pkg, i) => (
-                    <option key={i} value={pkg}>{pkg}</option>
+                  {dbPackages.map((pkg) => (
+                    <option key={pkg.id} value={pkg.title}>{pkg.title}</option>
                   ))}
                 </select>
                 <ChevronDown className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
@@ -434,32 +467,54 @@ export default function AppointmentWidget({ preSelectedDoctor = null }) {
         {/* ── Section 5: Lab selected tags ─── */}
         {activeTab === 'lab' && selectedLabItems.length > 0 && (
           <div className="col-span-12 mt-2 pt-2 border-t border-gray-50">
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 items-center">
               <span className="text-xs font-bold text-gray-400 ml-2 py-1">الخيارات المحددة:</span>
-              {selectedLabItems.map((item, idx) => (
-                <span
-                  key={idx}
-                  className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border animate-fadeIn ${labSelectionType === 'package'
-                      ? 'bg-teal-100 text-teal-700 border-teal-200'
-                      : 'bg-blue-50 text-blue-700 border-blue-200'
-                    }`}
-                >
-                  {item}
-                  <button onClick={() => removeLabItem(item)} className="hover:bg-black/10 rounded-full p-0.5 transition">
-                    <X size={12} />
+
+              {labSelectionType === 'single' ? (
+                <>
+                  {selectedLabItems.map((item, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border bg-blue-50 text-blue-700 border-blue-200 animate-fadeIn"
+                    >
+                      {item}
+                      <button onClick={() => removeLabItem(item)} className="hover:bg-black/10 rounded-full p-0.5 transition">
+                        <X size={12} />
+                      </button>
+                    </span>
+                  ))}
+                  <button
+                    onClick={() => { setSelectedLabItems([]); setLabSelectionType(null); setSelectedItemPriceUSD(0); }}
+                    className="text-xs text-red-500 underline mr-2"
+                  >
+                    مسح الكل
                   </button>
-                </span>
-              ))}
-              <button
-                onClick={() => { setSelectedLabItems([]); setLabSelectionType(null); }}
-                className="text-xs text-red-500 underline mr-2"
-              >
-                مسح الكل
-              </button>
+                </>
+              ) : (
+                /* Package: plain text — no chip, no X button */
+                <>
+                  <span className="font-bold text-teal-700 text-sm py-1">{selectedLabItems[0]}</span>
+                  <button
+                    onClick={() => { setSelectedLabItems([]); setLabSelectionType(null); setSelectedItemPriceUSD(0); }}
+                    className="text-xs text-red-500 underline mr-2"
+                  >
+                    مسح
+                  </button>
+                </>
+              )}
             </div>
           </div>
         )}
       </div>
+
+      {/* Live price badge */}
+      {priceYER > 0 && (
+        <div className="mt-3 flex items-center justify-center gap-2 bg-teal-50 border border-teal-100 rounded-xl px-4 py-3">
+          <span className="text-xs font-bold text-teal-500 uppercase tracking-wider">السعر</span>
+          <span className="text-2xl font-black text-teal-600">{priceYER.toLocaleString('ar-YE')}</span>
+          <span className="text-sm font-bold text-gray-500">ر.ي</span>
+        </div>
+      )}
 
       {/* Error message */}
       {error && (

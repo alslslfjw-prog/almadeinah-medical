@@ -78,6 +78,7 @@ export async function createAppointment(payload) {
                 // ── Extra context (not all bookings have a doctor_id) ─────
                 service_name: payload.service_name ?? null,
                 type: payload.type ?? null,
+                total_price_yer: payload.total_price_yer ?? null,
             },
         ])
         .select()

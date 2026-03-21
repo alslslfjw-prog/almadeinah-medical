@@ -182,7 +182,7 @@ export default function PackagesCMS() {
                                         }
                                     </td>
                                     <td className="px-4 py-3 font-semibold text-slate-800">{p.title}</td>
-                                    <td className="px-4 py-3 text-slate-600">{p.price ? `${Number(p.price).toLocaleString('ar-YE')} ر.ي` : '—'}</td>
+                                    <td className="px-4 py-3 text-slate-600 font-medium">{p.price && Number(p.price) > 0 ? `$ ${Number(p.price).toLocaleString('en-US')}` : '—'}</td>
                                     <td className="px-4 py-3 text-center text-slate-500">{p.tests_count ?? '—'}</td>
                                     <td className="px-4 py-3">{p.discount_text && <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full font-bold">{p.discount_text}</span>}</td>
                                     <td className="px-4 py-3">
@@ -232,7 +232,7 @@ export default function PackagesCMS() {
                                     className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-slate-50 resize-none" />
                             </div>
                             <div className="grid grid-cols-3 gap-3">
-                                <div><label className="block text-xs font-bold text-slate-500 mb-1">السعر (ريال)</label><input type="number" value={form.price} onChange={e => setField('price', e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-slate-50" /></div>
+                                <div><label className="block text-xs font-bold text-slate-500 mb-1">سعر الباقة (دولار أمريكي $)</label><input type="number" min="0" value={form.price} onChange={e => setField('price', e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-slate-50" placeholder="0" /></div>
                                 <div><label className="block text-xs font-bold text-slate-500 mb-1">عدد الفحوصات</label><input type="number" value={form.tests_count} onChange={e => setField('tests_count', e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-slate-50" /></div>
                                 <div><label className="block text-xs font-bold text-slate-500 mb-1">نص الخصم</label><input value={form.discount_text} onChange={e => setField('discount_text', e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-slate-50" placeholder="وفر 20%" /></div>
                             </div>

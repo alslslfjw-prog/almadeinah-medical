@@ -84,6 +84,7 @@ export default function Checkout() {
       patient_user_id: user?.id ?? null,
       service_name: serviceName,
       type: bookingData.type ?? null,
+      total_price_yer: bookingData.priceYER > 0 ? bookingData.priceYER : null,
     });
 
     if (ok) {
@@ -220,8 +221,14 @@ export default function Checkout() {
 
               <div className="mt-8 pt-6 border-t border-gray-100">
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-500">رسوم الحجز المبدئي</span>
-                  <span className="font-bold text-gray-800">مجاناً</span>
+                  <span className="text-gray-500">
+                    {bookingData.priceYER > 0 ? 'سعر الخدمة' : 'رسوم الحجز المبدئي'}
+                  </span>
+                  <span className={`font-bold ${bookingData.priceYER > 0 ? 'text-teal-600 text-base' : 'text-gray-800'}`}>
+                    {bookingData.priceYER > 0
+                      ? `${bookingData.priceYER.toLocaleString('ar-YE')} ر.ي`
+                      : 'مجاناً'}
+                  </span>
                 </div>
               </div>
             </div>

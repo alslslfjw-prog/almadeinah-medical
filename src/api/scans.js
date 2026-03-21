@@ -1,15 +1,11 @@
 /**
  * @module api/scans
- * @description All Supabase data operations for the `scans` and `examinations` tables.
+ * @description All Supabase data operations for scans, scan_categories, examinations tables.
  *
- * Live schema — scans (read 2026-03-08):
- *   id, name, image_url, price (numeric), duration, description,
- *   uses (jsonb), preparation, advantages (jsonb),
- *   icon_class, short_description, benefits
- *
- * Live schema — examinations:
- *   id, title, description, image_url, icon_class,
- *   header_color, title_en, devices
+ * scan_categories: id, name, icon_class, image_url, display_order
+ * scans: id, name, category_id (FK→scan_categories), price, description,
+ *        icon_class, short_description, preparation, benefits
+ * examinations: id, title, description, image_url, icon_class, header_color, title_en, devices
  */
 
 import { supabase } from '../lib/supabaseClient';
@@ -23,7 +19,8 @@ import { supabase } from '../lib/supabaseClient';
 export async function getScans() {
     const { data, error } = await supabase
         .from('scans')
-        .select('id, name, image_url, price, duration, short_description, icon_class');
+        .select('*, scan_categories(id, name)')
+        .order('id', { ascending: true });
     return { data, error };
 }
 
@@ -39,6 +36,37 @@ export async function getScanById(id) {
         .eq('id', id)
         .single();
     return { data, error };
+}
+
+// ─── SCAN CATEGORIES ─────────────────────────────────────────────────────────
+
+export async function getScanCategories() {
+    const { data, error } = await supabase
+        .from('scan_categories')
+        .select('*')
+        .order('display_order', { ascending: true });
+    return { data, error };
+}
+
+export async function createScanCategory(payload) {
+    try {
+        const { data, error } = await supabase.from('scan_categories').insert([payload]).select().single();
+        return { data, error };
+    } catch (err) { return { data: null, error: err }; }
+}
+
+export async function updateScanCategory(id, updates) {
+    try {
+        const { data, error } = await supabase.from('scan_categories').update(updates).eq('id', id).select().single();
+        return { data, error };
+    } catch (err) { return { data: null, error: err }; }
+}
+
+export async function deleteScanCategory(id) {
+    try {
+        const { error } = await supabase.from('scan_categories').delete().eq('id', id);
+        return { error };
+    } catch (err) { return { error: err }; }
 }
 
 // ─── EXAMINATIONS ─────────────────────────────────────────────────────────────

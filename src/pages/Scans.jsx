@@ -1,158 +1,79 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Link } from 'react-router-dom';
-import { 
-  Activity, Zap, Eye, ChevronLeft, 
-  LayoutGrid, HeartPulse
-} from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
+
+// Cycle through these for category badge backgrounds
+const COLOR_SCHEMES = [
+  'bg-blue-100 text-blue-600',
+  'bg-orange-100 text-orange-600',
+  'bg-indigo-100 text-indigo-600',
+  'bg-teal-100 text-teal-600',
+  'bg-pink-100 text-pink-600',
+  'bg-red-100 text-red-600',
+  'bg-purple-100 text-purple-600',
+  'bg-green-100 text-green-600',
+];
 
 const Scans = () => {
-  const [scansList, setScansList] = useState([]);
-  const [equipmentsList, setEquipmentsList] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [structuredScans, setStructuredScans] = useState([]);
+  const [categories,    setCategories]    = useState([]);
+  const [uncategorized, setUncategorized] = useState([]);
+  const [equipmentsList,setEquipmentsList]= useState([]);
+  const [loading,       setLoading]       = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
 
-        // 1. Fetch Main Scans Categories (We rely entirely on this now for details page compatibility)
-        const { data: scansData, error: scansError } = await supabase
+        // 1. Fetch categories with their child scans
+        const { data: cats, error: catsErr } = await supabase
+          .from('scan_categories')
+          .select('*, scans(*)')
+          .order('display_order', { ascending: true });
+        if (catsErr) throw catsErr;
+        setCategories(cats || []);
+
+        // 2. Fetch scans with no category assigned
+        const { data: uncat } = await supabase
           .from('scans')
           .select('*')
-          .order('id', { ascending: true });
-        if (scansError) throw scansError;
-        setScansList(scansData || []);
+          .is('category_id', null);
+        setUncategorized(uncat || []);
 
-        // 2. Fetch Equipments
-        const { data: equipmentsData, error: equipError } = await supabase
+        // 3. Fetch equipments
+        const { data: equip, error: equipErr } = await supabase
           .from('equipments')
           .select('*')
           .order('id', { ascending: true });
-        if (equipError) throw equipError;
-        setEquipmentsList(equipmentsData || []);
+        if (equipErr) throw equipErr;
+        setEquipmentsList(equip || []);
 
       } catch (error) {
-        console.error('Error fetching data:', error.message);
+        console.error('Error fetching scans data:', error.message);
       } finally {
         setLoading(false);
       }
     };
-
     fetchData();
   }, []);
 
-  // --- LOGIC: Group Scans ---
-  useEffect(() => {
-    if (scansList.length > 0) {
-      
-      const findScan = (name) => scansList.find(s => s.name && s.name.includes(name));
-      const getID = (name) => findScan(name)?.id;
-
-      const groups = [
-        {
-          title: "الأشعة المقطعية",
-          type: "parent",
-          icon: <LayoutGrid size={40} />,
-          bg: "bg-blue-100 text-blue-600",
-          image: "https://jwmcjqsdsibflzsaqeek.supabase.co/storage/v1/object/public/equipment-images/ct-scan.jpg.png",
-          children: [ 
-            "الأشعة المقطعية للدماغ والجمجمة (CT Brain/Head)",
-            "الأشعة المقطعية للجيوب الأنفية وعظام الوجه (CT Paranasal Sinuses & Maxillofacial)",
-            "الأشعة المقطعية للرقبة (CT Neck)",
-            "الأشعة المقطعية للصدر عالية الدقة (HRCT Chest)",
-            "الأشعة المقطعية للبطن والحوض (CT Abdomen & Pelvis)",
-            "الأشعة المقطعية للعمود الفقري (عنقي، ظهري، قطني) (CT Spine)",
-            "الأشعة المقطعية للعظام والمفاصل (CT Bones & Joints)",
-            "تصوير الأوعية الدموية بالأشعة المقطعية (CT Angiography - CTA)"
-          ].map(name => ({ name, id: getID(name) || getID(name.split(' (')[0]) })).filter(c => c.name) 
-        },
-        {
-          title: "مناظير الجهاز الهضمي والكبد",
-          type: "parent",
-          icon: <Eye size={40} />,
-          bg: "bg-orange-100 text-orange-600",
-          image: "https://jwmcjqsdsibflzsaqeek.supabase.co/storage/v1/object/public/equipment-images/Gastrointestinal-and-Liver-Endoscopy.png",
-          children: [
-            "مناظير المعدة والجهاز الهضمي العلوي",
-            "مناظير ربط دوالي المري وحقن دوالي المعدة",
-            "مناظير توسيع القناة الهضمية",
-            "مناظير استخراج جسم غريب من القناة الهضمية",
-            "مناظير القولون التشخيصية والعلاجية",
-            "الكشف المبكر عن سرطان القولون",
-            "استئصال لحميات الجهاز الهضمي",
-            "مناظير الجهاز الهضمي للأطفال العلوية والسفلية",
-            "تركيب بالونات المعدة",
-            "جهاز الارجون ليزر"
-          ].map(name => ({ name, id: getID(name) })).filter(c => c.id || c.name)
-        },
-        {
-          title: "الأشعة السينية الرقمية",
-          type: "parent",
-          icon: <Zap size={40} />,
-          bg: "bg-indigo-100 text-indigo-600",
-          image: "https://jwmcjqsdsibflzsaqeek.supabase.co/storage/v1/object/public/equipment-images/xray.jpg.png",
-          children: [
-            "الاشعة السينية للعظام",
-            "الاشعة السينية للصدر",
-            "الاشعة السينية للبطن",
-            "فحص الكلى بالصبغة I.V.U",
-            "فحص القولون بصبغة الباريوم",
-            "اشعة الصبغة للرحم وقنوات فالوب",
-            "فحص البلعوم والمعده بصبغة الباريوم"
-          ].map(name => ({ name, id: getID(name) })).filter(c => c.id || c.name)
-        },
-        {
-          title: "التصوير بالموجات فوق الصوتية",
-          type: "parent",
-          icon: <Activity size={40} />,
-          bg: "bg-teal-100 text-teal-600",
-          image: "https://jwmcjqsdsibflzsaqeek.supabase.co/storage/v1/object/public/equipment-images/ultrasound.jpg.png",
-          children: [
-            "الموجات فوق الصوتية للبطن",
-            "تصوير البروستات بالموجات فوق الصوتية",
-            "تصوير الغدة الدرقية بالموجات فوق الصوتية",
-            "تصوير الخصية بالموجات فوق الصوتية",
-            "تصوير الاوعية الدمويه - الدوبلر"
-          ].map(name => ({ name, id: getID(name) })).filter(c => c.id || c.name)
-        },
-        {
-          title: "تصوير الثدي",
-          type: "parent",
-          icon: <Activity size={40} />,
-          bg: "bg-pink-100 text-pink-600",
-          image: "https://jwmcjqsdsibflzsaqeek.supabase.co/storage/v1/object/public/equipment-images/mammogram.jpg.png",
-          children: [
-            "أشعة الماموجرام (Mammogram)"
-          ].map(name => ({ name, id: getID(name) })).filter(c => c.id || c.name)
-        },
-        {
-          title: "الفحوصات الفسيولوجية وتخطيط القلب",
-          type: "parent",
-          icon: <HeartPulse size={40} />,
-          bg: "bg-red-100 text-red-600",
-          image: "https://images.unsplash.com/photo-1559757175-5700dde675bc?q=80&w=800&auto=format&fit=crop", 
-          children: [
-            "تخطيط كهربية القلب (ECG)",
-            "تصوير القلب بالموجات فوق الصوتية (Echo)",
-            "تخطيط كهربية الدماغ (EEG)"
-          ].map(name => ({ name, id: getID(name) || getID(name.split(' (')[0]) })).filter(c => c.id || c.name)
-        }
-      ];
-
-      setStructuredScans(groups);
-    }
-  }, [scansList]);
+  // Build the full list: DB categories + optional "Other" bucket
+  const allGroups = [
+    ...categories,
+    ...(uncategorized.length > 0
+      ? [{ id: 'other', name: 'أخرى', icon_class: 'fas fa-list', image_url: null, scans: uncategorized }]
+      : []),
+  ];
 
   return (
     <div className="font-sans text-gray-800 bg-white" dir="rtl">
-      
+
       {/* --- HERO SECTION --- */}
       <section className="relative pt-12 pb-20 bg-gradient-to-b from-blue-50 to-white overflow-hidden">
         <div className="container mx-auto px-6">
           <div className="flex flex-col lg:flex-row items-center gap-12">
-            
+
             {/* Text Side */}
             <div className="lg:w-1/2 text-center lg:text-right z-10 order-2 lg:order-1">
                <span className="inline-block py-1.5 px-4 rounded-full bg-teal-100 text-teal-700 text-sm font-bold mb-6 shadow-sm">
@@ -165,7 +86,6 @@ const Scans = () => {
                <p className="text-gray-500 text-lg mb-8 leading-relaxed max-w-lg mx-auto lg:mx-0">
                   نقدم أحدث تقنيات التصوير الطبي والتشخيص بأعلى معايير الجودة والدقة لضمان صحتك وراحتك، مع نخبة من أفضل الأطباء والاستشاريين.
                </p>
-               
                <div className="flex flex-wrap justify-center lg:justify-start gap-4">
                   <button className="bg-blue-900 text-white px-8 py-3.5 rounded-xl font-bold hover:bg-blue-800 transition shadow-lg hover:shadow-xl transform hover:-translate-y-1">
                     احجز موعد الآن
@@ -218,58 +138,65 @@ const Scans = () => {
           </div>
 
           {loading ? (
-            <div className="text-center py-10">جارٍ تحميل الخدمات...</div>
+            <div className="text-center py-10 text-teal-600 font-bold">جارٍ تحميل الخدمات...</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {structuredScans.map((group, index) => {
-                
-                // CASE 2: Parent Category
-                return (
-                  <div key={index} className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 flex flex-col h-full group">
-                     <div className="h-56 overflow-hidden relative">
-                        <img src={group.image} alt={group.title} className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-blue-900/80 to-transparent"></div>
-                        <div className="absolute bottom-4 right-4 text-white">
-                           <h3 className="text-xl font-bold">{group.title}</h3>
-                        </div>
-                        <div className={`absolute top-4 left-4 p-2 rounded-lg ${group.bg}`}>
-                           {group.icon}
-                        </div>
-                     </div>
+              {allGroups.map((group, index) => {
+                const colorScheme = COLOR_SCHEMES[index % COLOR_SCHEMES.length];
+                const scansInGroup = group.scans || [];
 
-                     <div className="p-4 bg-gray-50/50 border-t border-gray-100 flex-grow">
-                        {group.children.length > 0 ? (
-                          <div className="max-h-48 overflow-y-auto pr-1 custom-scrollbar">
-                            <ul className="space-y-2">
-                                {group.children.map((child, cIdx) => (
-                                <li key={cIdx}>
-                                    {child.id ? (
-                                        <Link 
-                                        to={`/scans/${child.id}`}
-                                        className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100 hover:border-teal-200 hover:shadow-sm hover:translate-x-1 transition-all duration-200 cursor-pointer"
-                                        >
-                                        <span className="text-sm font-bold text-gray-700">{child.name}</span>
-                                        <ChevronLeft size={16} className="text-teal-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                        </Link>
-                                    ) : (
-                                        <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100">
-                                            <span className="text-sm font-bold text-gray-700">{child.name}</span>
-                                        </div>
-                                    )}
-                                </li>
-                                ))}
-                            </ul>
-                          </div>
-                        ) : (
-                          <div className="text-center py-4 text-gray-400 text-sm">
-                            جاري إضافة الخدمات الفرعية...
-                          </div>
-                        )}
-                     </div>
+                return (
+                  <div key={group.id} className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 flex flex-col h-full group">
+
+                    {/* Category image header */}
+                    <div className="h-56 overflow-hidden relative bg-gradient-to-br from-blue-900 to-teal-600">
+                      {group.image_url && (
+                        <img src={group.image_url} alt={group.name}
+                          className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-500" />
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-blue-900/80 to-transparent"></div>
+                      <div className="absolute bottom-4 right-4 text-white">
+                        <h3 className="text-xl font-bold drop-shadow">{group.name}</h3>
+                        <span className="text-xs text-blue-200">{scansInGroup.length} خدمة</span>
+                      </div>
+                      <div className={`absolute top-4 left-4 p-2.5 rounded-xl ${colorScheme}`}>
+                        <i className={`${group.icon_class || 'fas fa-x-ray'} text-2xl`}></i>
+                      </div>
+                    </div>
+
+                    {/* Scans list */}
+                    <div className="p-4 bg-gray-50/50 border-t border-gray-100 flex-grow">
+                      {scansInGroup.length > 0 ? (
+                        <div className="max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+                          <ul className="space-y-2">
+                            {scansInGroup.map((scan) => (
+                              <li key={scan.id}>
+                                <Link
+                                  to={`/scans/${scan.id}`}
+                                  className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100 hover:border-teal-200 hover:shadow-sm hover:translate-x-1 transition-all duration-200"
+                                >
+                                  <span className="text-sm font-bold text-gray-700">{scan.name}</span>
+                                  <ChevronLeft size={16} className="text-teal-500 shrink-0" />
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : (
+                        <div className="text-center py-4 text-gray-400 text-sm">
+                          جاري إضافة الخدمات الفرعية...
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
-
               })}
+
+              {allGroups.length === 0 && (
+                <div className="col-span-3 text-center py-20 text-gray-400">
+                  لا توجد فئات بعد. أضف الفئات من لوحة التحكم.
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -289,13 +216,13 @@ const Scans = () => {
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
               {equipmentsList.map((item) => (
                 <div key={item.id} className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-shadow duration-300 border border-gray-100 group flex flex-col">
-                  
-                  {/* Image Container */}
+
+                  {/* Image */}
                   <div className="relative h-64 overflow-hidden bg-gray-100">
-                    <img 
-                      src={item.image_url || "https://via.placeholder.com/400x300"} 
-                      alt={item.name} 
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
+                    <img
+                      src={item.image_url || "https://via.placeholder.com/400x300"}
+                      alt={item.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                     />
                     {item.badge && (
                       <span className="absolute top-4 right-4 bg-teal-500/90 backdrop-blur-sm text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm tracking-wider uppercase">
@@ -304,21 +231,18 @@ const Scans = () => {
                     )}
                   </div>
 
-                  {/* Card Content */}
+                  {/* Content */}
                   <div className="p-6 flex flex-col flex-grow">
                     <div className="mb-4 text-right">
                         <h3 className="text-xl font-bold text-gray-800 mb-1">{item.name}</h3>
-                        <p className="text-gray-400 text-sm font-medium dir-ltr" dir="ltr">
-                            {item.description}
-                        </p>
+                        <p className="text-gray-400 text-sm font-medium dir-ltr" dir="ltr">{item.description}</p>
                     </div>
-                    
                     <div className="mt-auto flex justify-end">
-                        <Link 
-                            to={`/equipments/${item.id}`} 
+                        <Link
+                            to={`/equipments/${item.id}`}
                             className="bg-teal-500 hover:bg-teal-600 text-white text-sm font-bold py-2 px-6 rounded-lg transition-colors flex items-center gap-2 shadow-teal-200 shadow-lg"
                         >
-                            عرض التفاصيل 
+                            عرض التفاصيل
                             <i className="fas fa-arrow-left text-xs mt-1"></i>
                         </Link>
                     </div>

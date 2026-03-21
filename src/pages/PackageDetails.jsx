@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { useSiteSettings } from '../hooks/useSiteSettings';
 import { 
   ArrowRight, Clock, CheckCircle, AlertTriangle, 
   TestTube, Calendar, Phone, Share2 
@@ -18,6 +19,7 @@ export default function PackageDetails() {
   const [pkg, setPkg] = useState(null);
   const [loading, setLoading] = useState(true);
   const [booking, setBooking] = useState({ date: '', time: '' });
+  const siteSettings = useSiteSettings();
 
   useEffect(() => {
     const fetchPackageDetails = async () => {
@@ -151,11 +153,11 @@ export default function PackageDetails() {
                 <div className="bg-white rounded-3xl p-6 shadow-xl border border-gray-100 sticky top-24">
                     <h3 className="text-xl font-bold text-gray-800 mb-2 text-center">احجز هذه الباقة</h3>
 
-                    {/* ── Task 1: Price ─── */}
-                    {pkg.price && (
+                    {/* Price — dynamic YER conversion */}
+                    {pkg.price > 0 && siteSettings?.usd_to_yer_rate > 0 && (
                         <div className="text-center mb-5">
                             <span className="text-3xl font-black text-teal-600">
-                                {Number(pkg.price).toLocaleString('ar-YE')}
+                                {Math.round(pkg.price * siteSettings.usd_to_yer_rate).toLocaleString('ar-YE')}
                             </span>
                             <span className="text-base font-bold text-gray-500 mr-1">ر.ي</span>
                             {pkg.discount_text && (

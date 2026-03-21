@@ -298,6 +298,7 @@ export default function AppointmentsAdmin() {
                                     <th className="text-right px-5 py-3.5 font-bold text-slate-500 text-xs uppercase">المريض</th>
                                     <th className="text-right px-5 py-3.5 font-bold text-slate-500 text-xs uppercase hidden md:table-cell">الخدمة</th>
                                     <th className="text-right px-5 py-3.5 font-bold text-slate-500 text-xs uppercase hidden lg:table-cell">التاريخ والوقت</th>
+                                    <th className="text-right px-5 py-3.5 font-bold text-slate-500 text-xs uppercase hidden md:table-cell">السعر</th>
                                     <th className="text-center px-5 py-3.5 font-bold text-slate-500 text-xs uppercase">الحالة</th>
                                     <th className="text-center px-5 py-3.5 font-bold text-slate-500 text-xs uppercase">إجراءات</th>
                                 </tr>
@@ -343,6 +344,17 @@ export default function AppointmentsAdmin() {
                                                 <Clock size={13} className="shrink-0" />
                                                 {fmtTime(appt.appointment_time)}
                                             </div>
+                                        </td>
+
+                                        {/* Price */}
+                                        <td className="px-5 py-4 hidden md:table-cell">
+                                            {appt.total_price_yer > 0 ? (
+                                                <span className="font-bold text-teal-600 text-sm">
+                                                    {Number(appt.total_price_yer).toLocaleString('ar-YE')} <span className="font-normal text-slate-400 text-xs">ر.ي</span>
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-500">مجاناً</span>
+                                            )}
                                         </td>
 
                                         {/* Status */}
