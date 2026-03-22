@@ -5,6 +5,7 @@ import Footer from './components/Footer';
 import ProtectedRoute from './components/ProtectedRoute';
 import { useAuthListener } from './hooks/useAuth';
 import useAuthStore from './store/authStore';
+import { STAFF_ROLES } from './lib/roles';
 
 // ── Public Pages ────────────────────────────────────────────────────────────
 import Home from './pages/Home';
@@ -28,6 +29,7 @@ import Checkout from './pages/Checkout';
 // ── Auth Pages ──────────────────────────────────────────────────────────────
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ResetPassword from './pages/ResetPassword';
 
 // ── Dashboard Layouts ───────────────────────────────────────────────────────
 import PatientLayout from './pages/dashboards/patient/PatientLayout';
@@ -42,6 +44,8 @@ import AdminOverview from './pages/dashboards/admin/AdminOverview';
 import PaymentGatewaysCMS from './pages/dashboards/admin/PaymentGatewaysCMS';
 import PackagesCMS from './pages/dashboards/admin/PackagesCMS';
 import SettingsCMS from './pages/dashboards/admin/SettingsCMS';
+import FinanceDashboard from './pages/dashboards/admin/FinanceDashboard';
+import UsersAdmin from './pages/dashboards/admin/UsersAdmin';
 
 
 /**
@@ -127,6 +131,7 @@ function App() {
         {/* ── Auth routes (no Navbar/Footer) ────────────────────────────── */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         {/* ── Patient dashboard (protected) ─────────────────────────────── */}
         <Route
@@ -142,20 +147,20 @@ function App() {
         <Route
           path="/dashboard/admin"
           element={
-            <ProtectedRoute allowedRoles="admin">
+            <ProtectedRoute allowedRoles={STAFF_ROLES}>
               <AdminLayout />
             </ProtectedRoute>
           }
         >
           <Route index element={<AdminOverview />} />
           <Route path="appointments" element={<AppointmentsAdmin />} />
-          <Route path="finance" element={<AdminStub title="المالية" />} />
+          <Route path="finance" element={<FinanceDashboard />} />
           <Route path="cms/blog" element={<BlogCMS />} />
           <Route path="cms/clinics" element={<ClinicsAdmin />} />
           <Route path="cms/labs" element={<LabTestsCMS />} />
           <Route path="cms/packages" element={<PackagesCMS />} />
           <Route path="doctors" element={<DoctorsAdmin />} />
-          <Route path="users" element={<AdminStub title="إدارة المستخدمين" />} />
+          <Route path="users" element={<UsersAdmin />} />
           <Route path="gateways" element={<PaymentGatewaysCMS />} />
           <Route path="settings" element={<SettingsCMS />} />
           <Route path="cms/scans" element={<ScansAdmin />} />

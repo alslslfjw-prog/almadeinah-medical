@@ -19,53 +19,62 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
 import useAuthStore from '../../../store/authStore';
+import { ROLE_NAV_ACCESS } from '../../../lib/roles';
 
 // ── Sidebar navigation items ──────────────────────────────────────────────────
 const NAV_ITEMS = [
     {
+        key: 'overview',
         label: 'نظرة عامة',
         icon: LayoutDashboard,
         to: '/dashboard/admin',
         end: true,
     },
     {
+        key: 'appointments',
         label: 'المواعيد',
         icon: CalendarDays,
         to: '/dashboard/admin/appointments',
     },
     {
+        key: 'finance',
         label: 'المالية',
         icon: BadgeDollarSign,
         to: '/dashboard/admin/finance',
     },
     {
+        key: 'cms',
         label: 'إدارة المحتوى',
         icon: BookOpen,
         separator: true,
         children: [
-            { label: 'المقالات', icon: Newspaper, to: '/dashboard/admin/cms/blog' },
-            { label: 'العيادات', icon: Building2, to: '/dashboard/admin/cms/clinics' },
-            { label: 'الفحوصات', icon: FlaskConical, to: '/dashboard/admin/cms/labs' },
-            { label: 'الباقات', icon: Package, to: '/dashboard/admin/cms/packages' },
-            { label: 'الأشعة التشخيصية', icon: ScanLine, to: '/dashboard/admin/cms/scans' },
+            { key: 'cms_blog',     label: 'المقالات',           icon: Newspaper,     to: '/dashboard/admin/cms/blog' },
+            { key: 'cms_clinics',  label: 'العيادات',           icon: Building2,     to: '/dashboard/admin/cms/clinics' },
+            { key: 'cms_labs',     label: 'الفحوصات',           icon: FlaskConical,  to: '/dashboard/admin/cms/labs' },
+            { key: 'cms_packages', label: 'الباقات',            icon: Package,       to: '/dashboard/admin/cms/packages' },
+            { key: 'cms_scans',    label: 'الأشعة التشخيصية', icon: ScanLine,      to: '/dashboard/admin/cms/scans' },
         ],
     },
     {
+        key: 'doctors',
         label: 'الأطباء',
         icon: Stethoscope,
         to: '/dashboard/admin/doctors',
     },
     {
+        key: 'users',
         label: 'المستخدمون',
         icon: Users,
         to: '/dashboard/admin/users',
     },
     {
+        key: 'gateways',
         label: 'بوابات الدفع',
         icon: CreditCard,
         to: '/dashboard/admin/gateways',
     },
     {
+        key: 'settings',
         label: 'الإعدادات العامة',
         icon: Settings,
         to: '/dashboard/admin/settings',
@@ -96,13 +105,29 @@ export default function AdminLayout() {
     const [collapsed, setCollapsed] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
     const { signOut } = useAuth();
-    const { user } = useAuthStore();
+    const { user, role } = useAuthStore();
     const navigate = useNavigate();
 
     const handleSignOut = async () => {
         await signOut();
         navigate('/login');
     };
+
+    // Filter sidebar items by the current user's role.
+    // Groups are retained only if at least one of their children is permitted.
+    const filterNavItems = (items, allowedKeys) => {
+        if (!allowedKeys) return items; // admin — unrestricted
+        return items.reduce((acc, item) => {
+            if (item.children) {
+                const visibleChildren = item.children.filter(c => allowedKeys.includes(c.key));
+                if (visibleChildren.length > 0) acc.push({ ...item, children: visibleChildren });
+            } else if (allowedKeys.includes(item.key)) {
+                acc.push(item);
+            }
+            return acc;
+        }, []);
+    };
+    const visibleNavItems = filterNavItems(NAV_ITEMS, ROLE_NAV_ACCESS[role]);
 
     // ── Sidebar content (shared between mobile drawer and desktop sidebar)
     const SidebarContent = () => (
@@ -122,7 +147,7 @@ export default function AdminLayout() {
 
             {/* Navigation */}
             <nav className="flex-1 overflow-y-auto p-3 space-y-1">
-                {NAV_ITEMS.map((item) => {
+                {visibleNavItems.map((item) => {
                     if (item.children) {
                         return (
                             <div key={item.label}>

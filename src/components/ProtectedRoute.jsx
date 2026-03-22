@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
+import { isStaff } from '../lib/roles';
 
 /**
  * ProtectedRoute — Wraps routes that require authentication (and optionally a specific role).
@@ -62,7 +63,7 @@ function LoadingSpinner({ message = 'جارٍ التحقق من صلاحية ا�
 }
 
 function UnauthorizedScreen({ role }) {
-    const dashboardPath = role === 'admin' ? '/dashboard/admin' : '/dashboard/patient';
+    const dashboardPath = isStaff(role) ? '/dashboard/admin' : '/dashboard/patient';
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-center p-8 gap-4" dir="rtl">
             <div className="w-24 h-24 bg-red-100 text-red-500 rounded-full flex items-center justify-center text-5xl mb-2">

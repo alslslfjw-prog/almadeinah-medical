@@ -75,3 +75,28 @@ export async function getUserProfile(userId) {
         .single();
     return { data, error };
 }
+
+// ─── PASSWORD RESET ───────────────────────────────────────────────────────────
+
+/**
+ * Send a password-reset email. The link in the email will redirect to
+ * /reset-password where the user can set a new password.
+ * @param {string} email
+ * @returns {Promise<{ error: object|null }>}
+ */
+export async function resetPasswordForEmail(email) {
+    const redirectTo = `${window.location.origin}/reset-password`;
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+    return { error };
+}
+
+/**
+ * Update the current user's password. Call ONLY after a PASSWORD_RECOVERY
+ * auth event has confirmed the recovery session is active.
+ * @param {string} newPassword
+ * @returns {Promise<{ user: object|null, error: object|null }>}
+ */
+export async function updateUserPassword(newPassword) {
+    const { data, error } = await supabase.auth.updateUser({ password: newPassword });
+    return { user: data?.user ?? null, error };
+}

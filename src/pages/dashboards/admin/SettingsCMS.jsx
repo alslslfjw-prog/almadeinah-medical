@@ -2,6 +2,8 @@
  * SettingsCMS — Admin page for general site settings.
  * Each card saves independently to avoid accidental overwrites.
  * Single-row pattern: always reads/writes id = 1.
+ *
+ * Note: Exchange rate (usd_to_yer_rate) has been moved to the Finance dashboard.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -21,19 +23,12 @@ export default function SettingsCMS() {
   const [savedWa, setSavedWa] = useState(false);
   const [errorWa, setErrorWa] = useState('');
 
-  // ── Exchange rate state ─────────────────────────────────────────────────────
-  const [usdToYerRate, setUsdToYerRate] = useState(800);
-  const [savingRate, setSavingRate] = useState(false);
-  const [savedRate, setSavedRate] = useState(false);
-  const [errorRate, setErrorRate] = useState('');
-
   // ── Boot ────────────────────────────────────────────────────────────────────
   useEffect(() => {
     getSiteSettings().then(({ data }) => {
       if (data) {
         setWhatsappNumber(data.whatsapp_number ?? '');
         setIsWhatsappActive(data.is_whatsapp_active ?? true);
-        setUsdToYerRate(data.usd_to_yer_rate ?? 800);
       }
       setLoading(false);
     });
@@ -55,21 +50,6 @@ export default function SettingsCMS() {
     setTimeout(() => setSavedWa(false), 3000);
   };
 
-  // ── Exchange rate save ──────────────────────────────────────────────────────
-  const handleSaveRate = async () => {
-    if (!usdToYerRate || Number(usdToYerRate) < 1) { setErrorRate('سعر الصرف يجب أن يكون أكبر من صفر'); return; }
-    setSavingRate(true); setErrorRate(''); setSavedRate(false);
-
-    const { error: err } = await updateSiteSettings({
-      usd_to_yer_rate: Number(usdToYerRate),
-    });
-
-    setSavingRate(false);
-    if (err) { setErrorRate(err.message); return; }
-    setSavedRate(true);
-    setTimeout(() => setSavedRate(false), 3000);
-  };
-
   // ── Loading screen ──────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -86,7 +66,7 @@ export default function SettingsCMS() {
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-slate-800">الإعدادات العامة</h1>
-        <p className="text-sm text-slate-400 mt-0.5">إعدادات الموقع والتواصل</p>
+        <p className="text-sm text-slate-400 mt-0.5">إعدادات التواصل والقنوات العامة للموقع</p>
       </div>
 
       {/* ── WhatsApp Card ── */}
@@ -115,8 +95,7 @@ export default function SettingsCMS() {
         </div>
 
         {/* Status pill */}
-        <div className={`inline-flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-full ${isWhatsappActive ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'
-          }`}>
+        <div className={`inline-flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-full ${isWhatsappActive ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
           <span className={`w-2 h-2 rounded-full ${isWhatsappActive ? 'bg-green-500' : 'bg-slate-400'}`} />
           {isWhatsappActive ? 'الزر مفعّل — يظهر للزوار' : 'الزر معطّل — مخفي عن الزوار'}
         </div>
@@ -169,61 +148,6 @@ export default function SettingsCMS() {
         >
           {savingWa ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
           {savingWa ? 'جارٍ الحفظ...' : 'حفظ الإعدادات'}
-        </button>
-      </div>
-
-      {/* ── Exchange Rate Card ── */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-5 mt-6">
-        <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
-          <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
-            <span className="text-blue-500 font-bold text-sm">$</span>
-          </div>
-          <div>
-            <p className="font-bold text-slate-800">سعر صرف الدولار</p>
-            <p className="text-xs text-slate-400">يُستخدم لحساب أسعار الأطباء بالريال اليمني</p>
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-bold text-slate-600 mb-2">
-            سعر الدولار <span className="text-slate-400 font-normal text-xs">(ريال يمني لكل دولار)</span>
-          </label>
-          <input
-            type="number"
-            min="1"
-            value={usdToYerRate}
-            onChange={e => setUsdToYerRate(e.target.value)}
-            dir="ltr"
-            className="w-full border border-slate-200 rounded-xl px-4 py-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 bg-slate-50"
-            placeholder="800"
-          />
-          {usdToYerRate > 0 && (
-            <p className="text-xs text-slate-400 mt-2">
-              معاينة: <span className="font-mono font-bold text-slate-600">1 USD = {Number(usdToYerRate).toLocaleString('ar-YE')} ر.ي</span>
-            </p>
-          )}
-        </div>
-
-        {/* Rate feedback */}
-        {errorRate && (
-          <p className="flex items-center gap-2 text-red-500 text-xs bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-            <AlertCircle size={13} /> {errorRate}
-          </p>
-        )}
-        {savedRate && (
-          <p className="flex items-center gap-2 text-green-600 text-xs bg-green-50 border border-green-100 rounded-lg px-3 py-2">
-            <CheckCircle size={13} /> تم حفظ سعر الصرف بنجاح!
-          </p>
-        )}
-
-        {/* Rate save button */}
-        <button
-          onClick={handleSaveRate}
-          disabled={savingRate}
-          className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white font-bold px-6 py-2.5 rounded-xl transition text-sm shadow-sm"
-        >
-          {savingRate ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-          {savingRate ? 'جارٍ الحفظ...' : 'حفظ الإعدادات'}
         </button>
       </div>
 

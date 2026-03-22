@@ -26,6 +26,8 @@ import {
     signInWithEmail,
     signOut as apiSignOut,
     getUserProfile,
+    resetPasswordForEmail,
+    updateUserPassword,
 } from '../api/auth';
 
 // ── Profile fetch with hard 5-second timeout ──────────────────────────────────
@@ -137,5 +139,13 @@ export function useAuth() {
         return result;
     }, [clearAuth]);
 
-    return { user, role, isLoading, isAuthenticated, signIn, signOut };
+    const sendPasswordReset = useCallback(async (email) => {
+        return await resetPasswordForEmail(email);
+    }, []);
+
+    const updatePassword = useCallback(async (newPassword) => {
+        return await updateUserPassword(newPassword);
+    }, []);
+
+    return { user, role, isLoading, isAuthenticated, signIn, signOut, sendPasswordReset, updatePassword };
 }
