@@ -12,7 +12,7 @@ import { useSiteSettings } from '../hooks/useSiteSettings';
 
 
 
-export default function AppointmentWidget({ preSelectedDoctor = null }) {
+export default function AppointmentWidget({ preSelectedDoctor = null, onBookingReady = null }) {
   const navigate = useNavigate();
 
   // ✅ Auth state from Zustand — used to gate the booking action
@@ -275,24 +275,31 @@ export default function AppointmentWidget({ preSelectedDoctor = null }) {
     if (!date) { setError('يرجى اختيار التاريخ'); return; }
     if (!time) { setError('يرجى اختيار الوقت'); return; }
 
-    // ── ✅ Auth gate: unauthenticated users get redirected to login ──────────
+    // ── Build booking data object ────────────────────────────────────────────
+    const bookingData = {
+      type:             activeTab,
+      primarySelection: finalSelection,
+      doctor:           selectedDoctor,
+      date,
+      time,
+      isPackage:     labSelectionType === 'package',
+      patientUserId: user?.id ?? null,
+      priceUSD:      selectedItemPriceUSD,
+      priceYER,
+    };
+
+    // ── onBookingReady: embedded mode (dashboard modal) ──────────────────────
+    // When this prop is provided the caller handles navigation — no page redirect.
+    if (onBookingReady) {
+      onBookingReady(bookingData);
+      return;
+    }
+
+    // ── Public mode: auth gate then navigate to /checkout ───────────────────
     if (!isAuthenticated) {
       navigate('/login', { state: { from: '/checkout' } });
       return;
     }
-
-    // ── Navigate to checkout, passing booking data + user id ────────────────
-    const bookingData = {
-      type: activeTab,
-      primarySelection: finalSelection,
-      doctor: selectedDoctor,
-      date,
-      time,
-      isPackage: labSelectionType === 'package',
-      patientUserId: user?.id ?? null,
-      priceUSD: selectedItemPriceUSD,
-      priceYER,
-    };
     navigate('/checkout', { state: bookingData });
   };
 

@@ -70,9 +70,9 @@ function AddStaffModal({ onClose, onSuccess }) {
         password: generatePlaceholderPassword(),
     });
     const [submitting, setSubmitting] = useState(false);
-    const [error, setError]           = useState('');
+    const [error, setError] = useState('');
     const [createdPassword, setCreatedPassword] = useState(null); // success state
-    const [copied, setCopied]         = useState(false);
+    const [copied, setCopied] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -87,11 +87,11 @@ function AddStaffModal({ onClose, onSuccess }) {
             setError(
                 msg.includes('already registered') || msg.includes('already been registered') || msg.includes('Email address is already')
                     ? 'هذا البريد الإلكتروني مسجّل مسبقاً في النظام.' :
-                msg.includes('invalid') && msg.toLowerCase().includes('email')
-                    ? 'صيغة البريد الإلكتروني غير صحيحة.' :
-                msg.includes('password') && msg.includes('weak')
-                    ? 'كلمة المرور ضعيفة جداً. استخدم مزيجاً من الأحرف والأرقام.' :
-                (msg || 'حدث خطأ غير متوقع. يرجى المحاولة مجدداً.')
+                    msg.includes('invalid') && msg.toLowerCase().includes('email')
+                        ? 'صيغة البريد الإلكتروني غير صحيحة.' :
+                        msg.includes('password') && msg.includes('weak')
+                            ? 'كلمة المرور ضعيفة جداً. استخدم مزيجاً من الأحرف والأرقام.' :
+                            (msg || 'حدث خطأ غير متوقع. يرجى المحاولة مجدداً.')
             );
         } else {
             // Show the "copy password" success screen
@@ -100,7 +100,7 @@ function AddStaffModal({ onClose, onSuccess }) {
     };
 
     const handleCopy = () => {
-        navigator.clipboard.writeText(createdPassword).catch(() => {});
+        navigator.clipboard.writeText(createdPassword).catch(() => { });
         setCopied(true);
     };
 
@@ -149,52 +149,52 @@ function AddStaffModal({ onClose, onSuccess }) {
                         </button>
                     </div>
                 ) : (
-                /* ── Form ── */
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                    <div>
-                        <label className="block text-sm font-bold text-slate-600 mb-1.5">الاسم الكامل <span className="text-red-400">*</span></label>
-                        <input type="text" required placeholder="محمد أحمد" value={form.full_name}
-                            onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} className={inputCls} />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-bold text-slate-600 mb-1.5">البريد الإلكتروني <span className="text-red-400">*</span></label>
-                        <input type="email" required dir="ltr" placeholder="staff@example.com" value={form.email}
-                            onChange={e => setForm(p => ({ ...p, email: e.target.value }))} className={inputCls} />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-bold text-slate-600 mb-1.5">الدور الوظيفي</label>
-                        <select value={form.role} onChange={e => setForm(p => ({ ...p, role: e.target.value }))} className={inputCls}>
-                            {STAFF_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-bold text-slate-600 mb-1.5">
-                            كلمة المرور المؤقتة
-                            <span className="text-slate-400 font-normal text-xs mr-1">(سيتم مشاركتها مع الموظف)</span>
-                        </label>
-                        <input type="text" dir="ltr" value={form.password}
-                            onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
-                            className={`${inputCls} font-mono tracking-wider`} />
-                        <p className="text-xs text-slate-400 mt-1">8 أحرف كحد أدنى. يمكنك تعديلها أو الإبقاء على القيمة المولَّدة تلقائياً.</p>
-                    </div>
-
-                    {error && (
-                        <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 border border-red-100 rounded-xl px-3 py-2">
-                            <AlertCircle size={15} className="shrink-0" /> {error}
+                    /* ── Form ── */
+                    <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                        <div>
+                            <label className="block text-sm font-bold text-slate-600 mb-1.5">الاسم الكامل <span className="text-red-400">*</span></label>
+                            <input type="text" required placeholder="محمد أحمد" value={form.full_name}
+                                onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} className={inputCls} />
                         </div>
-                    )}
+                        <div>
+                            <label className="block text-sm font-bold text-slate-600 mb-1.5">البريد الإلكتروني <span className="text-red-400">*</span></label>
+                            <input type="email" required dir="ltr" placeholder="staff@example.com" value={form.email}
+                                onChange={e => setForm(p => ({ ...p, email: e.target.value }))} className={inputCls} />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-slate-600 mb-1.5">الدور الوظيفي</label>
+                            <select value={form.role} onChange={e => setForm(p => ({ ...p, role: e.target.value }))} className={inputCls}>
+                                {STAFF_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-slate-600 mb-1.5">
+                                كلمة المرور المؤقتة
+                                <span className="text-slate-400 font-normal text-xs mr-1">(سيتم مشاركتها مع الموظف)</span>
+                            </label>
+                            <input type="text" dir="ltr" value={form.password}
+                                onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
+                                className={`${inputCls} font-mono tracking-wider`} />
+                            <p className="text-xs text-slate-400 mt-1">8 أحرف كحد أدنى. يمكنك تعديلها أو الإبقاء على القيمة المولَّدة تلقائياً.</p>
+                        </div>
 
-                    <div className="flex gap-3 pt-2">
-                        <button type="submit" disabled={submitting}
-                            className="flex-1 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm transition">
-                            {submitting ? <><Loader2 size={15} className="animate-spin" /> جارٍ الإنشاء...</> : 'إنشاء الحساب'}
-                        </button>
-                        <button type="button" onClick={onClose}
-                            className="px-5 border border-slate-200 text-slate-600 font-semibold rounded-xl text-sm hover:bg-slate-50 transition">
-                            إلغاء
-                        </button>
-                    </div>
-                </form>
+                        {error && (
+                            <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 border border-red-100 rounded-xl px-3 py-2">
+                                <AlertCircle size={15} className="shrink-0" /> {error}
+                            </div>
+                        )}
+
+                        <div className="flex gap-3 pt-2">
+                            <button type="submit" disabled={submitting}
+                                className="flex-1 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm transition">
+                                {submitting ? <><Loader2 size={15} className="animate-spin" /> جارٍ الإنشاء...</> : 'إنشاء الحساب'}
+                            </button>
+                            <button type="button" onClick={onClose}
+                                className="px-5 border border-slate-200 text-slate-600 font-semibold rounded-xl text-sm hover:bg-slate-50 transition">
+                                إلغاء
+                            </button>
+                        </div>
+                    </form>
                 )}
             </div>
         </div>
@@ -206,14 +206,14 @@ function AddStaffModal({ onClose, onSuccess }) {
 
 function EditPatientModal({ patient, onClose, onSave }) {
     const [form, setForm] = useState({
-        full_name:     patient.full_name     ?? '',
-        phone:         patient.phone         ?? '',
-        gender:        patient.gender         ?? '',
+        full_name: patient.full_name ?? '',
+        phone: patient.phone ?? '',
+        gender: patient.gender ?? '',
         date_of_birth: patient.date_of_birth ?? '',
-        address:       patient.address       ?? '',
+        address: patient.address ?? '',
     });
     const [saving, setSaving] = useState(false);
-    const [error, setError]   = useState('');
+    const [error, setError] = useState('');
 
     const set = (key) => (e) => setForm(p => ({ ...p, [key]: e.target.value }));
 
@@ -310,12 +310,12 @@ function EditPatientModal({ patient, onClose, onSave }) {
 // ── Staff Tab ─────────────────────────────────────────────────────────────────
 
 function StaffTab({ currentUserId, onAddClick, showToast }) {
-    const [staff, setStaff]         = useState([]);
-    const [loading, setLoading]     = useState(true);
+    const [staff, setStaff] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [editingId, setEditingId] = useState(null);
-    const [saving, setSaving]       = useState(false);
+    const [saving, setSaving] = useState(false);
     const [confirmDeleteId, setConfirmDeleteId] = useState(null);
-    const [deleting, setDeleting]   = useState(false);
+    const [deleting, setDeleting] = useState(false);
 
     useEffect(() => {
         getAllStaff().then(({ data }) => { setStaff(data ?? []); setLoading(false); });
@@ -440,11 +440,11 @@ function StaffTab({ currentUserId, onAddClick, showToast }) {
 const GENDER_LABEL = { male: 'ذكر', female: 'أنثى' };
 
 function PatientsTab({ showToast }) {
-    const [patients, setPatients]     = useState([]);
-    const [loading, setLoading]       = useState(true);
+    const [patients, setPatients] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [editTarget, setEditTarget] = useState(null);
     const [confirmDeleteId, setConfirmDeleteId] = useState(null);
-    const [deleting, setDeleting]     = useState(false);
+    const [deleting, setDeleting] = useState(false);
 
     useEffect(() => {
         getAllPatients().then(({ data }) => { setPatients(data ?? []); setLoading(false); });
@@ -511,7 +511,7 @@ function PatientsTab({ showToast }) {
                                     {p.gender
                                         ? <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${p.gender === 'male' ? 'bg-blue-100 text-blue-700' : 'bg-pink-100 text-pink-700'}`}>
                                             {GENDER_LABEL[p.gender] ?? p.gender}
-                                          </span>
+                                        </span>
                                         : <span className="text-slate-300 text-xs">—</span>}
                                 </td>
                                 <td className="px-4 py-3.5 text-center text-slate-400 text-xs">{formatDate(p.date_of_birth)}</td>
@@ -561,15 +561,15 @@ function PatientsTab({ showToast }) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 const TABS = [
-    { id: 'staff',    label: 'كادر العمل', icon: Users },
-    { id: 'patients', label: 'المرضى',      icon: UserCheck },
+    { id: 'staff', label: 'كادر العمل', icon: Users },
+    { id: 'patients', label: 'المرضى', icon: UserCheck },
 ];
 
 export default function UsersAdmin() {
-    const { user }         = useAuth();
-    const [tab, setTab]    = useState('staff');
+    const { user } = useAuth();
+    const [tab, setTab] = useState('staff');
     const [showModal, setShowModal] = useState(false);
-    const [toast, setToast]         = useState(null);
+    const [toast, setToast] = useState(null);
 
     const showToast = useCallback((type, msg) => {
         setToast({ type, msg });

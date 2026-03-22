@@ -47,6 +47,10 @@ import SettingsCMS from './pages/dashboards/admin/SettingsCMS';
 import FinanceDashboard from './pages/dashboards/admin/FinanceDashboard';
 import UsersAdmin from './pages/dashboards/admin/UsersAdmin';
 
+// ── Patient Dashboard Pages ─────────────────────────────────────────────────
+import PatientOverview from './pages/dashboards/patient/PatientOverview';
+import PatientAppointments from './pages/dashboards/patient/PatientAppointments';
+import PatientProfile from './pages/dashboards/patient/PatientProfile';
 
 /**
  * AuthInitializer — registers the Supabase auth listener EXACTLY ONCE.
@@ -133,15 +137,19 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/reset-password" element={<ResetPassword />} />
 
-        {/* ── Patient dashboard (protected) ─────────────────────────────── */}
+        {/* ── Patient dashboard (protected, patient role only) ────────────────── */}
         <Route
-          path="/dashboard/patient/*"
+          path="/dashboard/patient"
           element={
-            <ProtectedRoute allowedRoles={['patient', 'admin']}>
+            <ProtectedRoute allowedRoles={['patient']}>
               <PatientLayout />
             </ProtectedRoute>
           }
-        />
+        >
+          <Route index element={<PatientOverview />} />
+          <Route path="appointments" element={<PatientAppointments />} />
+          <Route path="profile"      element={<PatientProfile />} />
+        </Route>
 
         {/* ── Admin dashboard (protected, nested routes) ─────────────────── */}
         <Route
