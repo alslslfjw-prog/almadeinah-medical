@@ -3,9 +3,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { User, Loader2, CheckCircle, AlertCircle, Lock } from 'lucide-react';
+import { User, Phone, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { getMyProfile, updateMyProfile } from '../../../api/patient';
-import { resetPasswordForEmail } from '../../../api/auth';
 import useAuthStore from '../../../store/authStore';
 
 const inputCls = 'w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 bg-slate-50 disabled:bg-slate-100 disabled:text-slate-400';
@@ -22,8 +21,6 @@ export default function PatientProfile() {
     const [loading, setLoading]     = useState(true);
     const [saving, setSaving]       = useState(false);
     const [saveMsg, setSaveMsg]     = useState(null); // { type, text }
-    const [resetSent, setResetSent] = useState(false);
-    const [resetLoading, setResetLoading] = useState(false);
 
     useEffect(() => {
         getMyProfile().then(({ data }) => {
@@ -55,13 +52,6 @@ export default function PatientProfile() {
         setTimeout(() => setSaveMsg(null), 4000);
     };
 
-    const handlePasswordReset = async () => {
-        if (!user?.email) return;
-        setResetLoading(true);
-        await resetPasswordForEmail(user.email);
-        setResetLoading(false);
-        setResetSent(true);
-    };
 
     if (loading) return (
         <div className="flex justify-center py-24"><Loader2 size={24} className="animate-spin text-teal-500" /></div>
@@ -76,7 +66,9 @@ export default function PatientProfile() {
                 </div>
                 <div>
                     <h1 className="text-xl font-black text-slate-800">{profile?.full_name || 'مريض'}</h1>
-                    <p className="text-sm text-slate-400">{profile?.email || user?.email}</p>
+                    <p className="text-sm text-slate-400 flex items-center gap-1">
+                        <Phone size={13} /> {user?.phone ? user.phone : (profile?.phone || '—')}
+                    </p>
                 </div>
             </div>
 
@@ -90,9 +82,11 @@ export default function PatientProfile() {
                 </div>
 
                 <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1.5">البريد الإلكتروني</label>
-                    <input type="email" disabled dir="ltr" value={profile?.email || user?.email || ''} className={inputCls} />
-                    <p className="text-xs text-slate-400 mt-1">لا يمكن تغيير البريد الإلكتروني من هنا.</p>
+                    <label className="block text-xs font-bold text-slate-500 mb-1.5">رقم الهاتف (هوية الحساب)</label>
+                    <input type="tel" disabled dir="ltr"
+                        value={user?.phone ?? profile?.phone ?? ''}
+                        className={inputCls} />
+                    <p className="text-xs text-slate-400 mt-1">رقم الهاتف هو هوية حسابك ولا يمكن تغييره من هنا.</p>
                 </div>
 
                 <div>
@@ -133,23 +127,6 @@ export default function PatientProfile() {
                 </button>
             </form>
 
-            {/* Password reset */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-                <h2 className="font-bold text-slate-700 flex items-center gap-2 mb-1"><Lock size={16} /> كلمة المرور</h2>
-                <p className="text-xs text-slate-400 mb-4">سيتم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني.</p>
-
-                {resetSent ? (
-                    <div className="flex items-center gap-2 text-green-700 text-sm bg-green-50 rounded-xl px-3 py-2">
-                        <CheckCircle size={15} /> تم الإرسال! تحقق من بريدك الإلكتروني.
-                    </div>
-                ) : (
-                    <button onClick={handlePasswordReset} disabled={resetLoading}
-                        className="flex items-center gap-2 text-sm font-semibold border border-slate-200 px-4 py-2.5 rounded-xl text-slate-600 hover:bg-slate-50 disabled:opacity-60 transition">
-                        {resetLoading ? <Loader2 size={14} className="animate-spin" /> : <Lock size={14} />}
-                        تغيير كلمة المرور
-                    </button>
-                )}
-            </div>
         </div>
     );
 }

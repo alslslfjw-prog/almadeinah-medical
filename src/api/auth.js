@@ -49,6 +49,35 @@ export async function signUpWithEmail({ email, password }) {
     return { user: data?.user ?? null, error };
 }
 
+// ─── PHONE / OTP AUTH (patients) ─────────────────────────────────────────────
+
+/**
+ * Send an OTP to a phone number via the Supabase Send-SMS hook
+ * (which forwards it to UltraMsg WhatsApp).
+ * @param {string} phoneE164 — E.164 format, e.g. "+96777XXXXXXX"
+ * @returns {Promise<{ error: object|null }>}
+ */
+export async function signInWithPhone(phoneE164) {
+    const { error } = await supabase.auth.signInWithOtp({ phone: phoneE164 });
+    return { error };
+}
+
+/**
+ * Verify the OTP received on the patient's phone.
+ * On success, a full Supabase session is created.
+ * @param {string} phoneE164 — must match the phone used in signInWithPhone
+ * @param {string} token     — 6-digit OTP
+ * @returns {Promise<{ user: object|null, session: object|null, error: object|null }>}
+ */
+export async function verifyPhoneOtp(phoneE164, token) {
+    const { data, error } = await supabase.auth.verifyOtp({
+        phone: phoneE164,
+        token,
+        type: 'sms',
+    });
+    return { user: data?.user ?? null, session: data?.session ?? null, error };
+}
+
 /**
  * Sign out the current user.
  * @returns {Promise<{ error: object|null }>}

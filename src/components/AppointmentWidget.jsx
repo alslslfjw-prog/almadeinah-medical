@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Calendar, Clock, ChevronDown, Phone,
@@ -9,6 +9,7 @@ import { getClinics } from '../api/clinics';
 import { supabase } from '../lib/supabaseClient';   // only for scans & lab_tests_list (no hooks yet)
 import useAuthStore from '../store/authStore';
 import { useSiteSettings } from '../hooks/useSiteSettings';
+import PhoneOtpModal from './PhoneOtpModal';
 
 
 
@@ -18,6 +19,9 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
   // ✅ Auth state from Zustand — used to gate the booking action
   const { user, isAuthenticated } = useAuthStore();
   const siteSettings = useSiteSettings();
+
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const pendingBookingRef = useRef(null);   // holds bookingData while patient authenticates
 
   const [activeTab, setActiveTab] = useState('clinics');
   const [primaryOptions, setPrimaryOptions] = useState([]);
@@ -297,7 +301,9 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
 
     // ── Public mode: auth gate then navigate to /checkout ───────────────────
     if (!isAuthenticated) {
-      navigate('/login', { state: { from: '/checkout' } });
+      // Store booking data and show inline OTP modal — no page reload
+      pendingBookingRef.current = bookingData;
+      setShowOtpModal(true);
       return;
     }
     navigate('/checkout', { state: bookingData });
@@ -305,6 +311,7 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
 
   // ─── RENDER ──────────────────────────────────────────────────────────────
   return (
+    <>
     <div className="bg-white rounded-[2rem] shadow-xl p-5 md:p-8 w-full border border-gray-100 relative" dir="rtl">
 
       {/* Tabs */}
@@ -545,5 +552,17 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
         </div>
       )}
     </div>
+
+      {/* Inline OTP modal — shown when unauthenticated user clicks Book */}
+      {showOtpModal && (
+        <PhoneOtpModal
+          onClose={() => setShowOtpModal(false)}
+          onSuccess={() => {
+            setShowOtpModal(false);
+            navigate('/checkout', { state: pendingBookingRef.current });
+          }}
+        />
+      )}
+    </>
   );
 }
