@@ -121,6 +121,19 @@ export default function Footer() {
           </div>
         </div>
 
+        {/* Developer credit */}
+        <p className="text-center text-[11px] text-gray-600 mt-4">
+          تصميم وتطوير{' '}
+          <a
+            href="https://www.facebook.com/p/Aden-web-design-61558405889223/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-gray-500 hover:text-gray-300 hover:underline transition-colors duration-200"
+          >
+            عدن ويب ديزاين
+          </a>
+        </p>
+
       </div>
     </footer>
   );
