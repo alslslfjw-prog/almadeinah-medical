@@ -129,7 +129,8 @@ export default function LabsAdmin() {
                 <div className="flex justify-center py-24"><Loader2 className="animate-spin text-teal-500" size={28} /></div>
             ) : (
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                    <table className="w-full text-sm">
+                    <div className="overflow-x-auto">
+                    <table className="w-full text-sm min-w-[440px]">
                         <thead className="bg-slate-50 text-xs font-bold text-slate-500 uppercase">
                             <tr>
                                 <th className="px-4 py-3 text-right">اسم الفحص</th>
@@ -159,6 +160,7 @@ export default function LabsAdmin() {
                             {filtered.length === 0 && <tr><td colSpan={4} className="py-16 text-center text-slate-400">لا توجد نتائج</td></tr>}
                         </tbody>
                     </table>
+                    </div>{/* /overflow-x-auto */}
                 </div>
             )}
 

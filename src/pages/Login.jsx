@@ -189,7 +189,7 @@ export default function Login() {
                                     <h1 className="text-xl font-bold text-white text-center mb-1">أدخل رمز التحقق</h1>
                                     <p className="text-blue-200 text-center text-sm mb-6">تم الإرسال إلى {COUNTRY_CODE}{phone}</p>
                                     <form onSubmit={handleVerifyOtp} className="space-y-5">
-                                        <div className="flex gap-2 justify-center" dir="ltr">
+                                        <div className="flex gap-1.5 sm:gap-2 justify-center" dir="ltr">
                                             {Array.from({ length: 6 }).map((_, i) => (
                                                 <input key={i}
                                                     ref={el => otpRefs.current[i] = el}
@@ -197,7 +197,7 @@ export default function Login() {
                                                     value={otp[i] ?? ''}
                                                     onChange={e => handleOtpChar(i, e.target.value)}
                                                     onKeyDown={e => handleOtpKey(i, e)}
-                                                    className="w-11 h-12 text-center text-xl font-black bg-white/10 border-2 border-white/20 rounded-xl text-white focus:outline-none focus:border-teal-400 transition"
+                                                    className="w-9 sm:w-11 h-12 text-center text-xl font-black bg-white/10 border-2 border-white/20 rounded-xl text-white focus:outline-none focus:border-teal-400 transition"
                                                     autoFocus={i === 0} />
                                             ))}
                                         </div>

@@ -233,7 +233,8 @@ export default function ScansAdmin() {
 
                     {/* Scans Table */}
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                        <table className="w-full text-sm">
+                        <div className="overflow-x-auto">
+                        <table className="w-full text-sm min-w-[520px]">
                             <thead className="bg-slate-50 text-slate-500 text-xs font-bold uppercase">
                                 <tr>
                                     <th className="px-4 py-3 text-right">الاسم</th>
@@ -268,12 +269,14 @@ export default function ScansAdmin() {
                                 {filtered.length === 0 && <tr><td colSpan={4} className="py-16 text-center text-slate-400">لا توجد نتائج</td></tr>}
                             </tbody>
                         </table>
+                        </div>{/* /overflow-x-auto */}
                     </div>
                 </>
             ) : (
                 /* Categories Table */
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                    <table className="w-full text-sm">
+                    <div className="overflow-x-auto">
+                    <table className="w-full text-sm min-w-[400px]">
                         <thead className="bg-slate-50 text-slate-500 text-xs font-bold uppercase">
                             <tr>
                                 <th className="px-4 py-3 text-right">اسم الفئة</th>
@@ -304,6 +307,7 @@ export default function ScansAdmin() {
                             {categories.length === 0 && <tr><td colSpan={4} className="py-16 text-center text-slate-400">لا توجد فئات</td></tr>}
                         </tbody>
                     </table>
+                    </div>{/* /overflow-x-auto */}
                 </div>
             )}
 

@@ -208,7 +208,8 @@ export default function FinanceDashboard() {
                 {revenueByType.length === 0 ? (
                     <p className="text-sm text-slate-400 text-center py-10">لا توجد بيانات للفترة المحددة</p>
                 ) : (
-                    <table className="w-full text-sm">
+                    <div className="overflow-x-auto">
+                    <table className="w-full text-sm min-w-[380px]">
                         <thead className="bg-slate-50 text-xs text-slate-500 font-bold">
                             <tr>
                                 <th className="text-right px-6 py-3">نوع الخدمة</th>
@@ -235,6 +236,7 @@ export default function FinanceDashboard() {
                             ))}
                         </tbody>
                     </table>
+                    </div>
                 )}
             </div>
 

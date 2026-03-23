@@ -370,7 +370,8 @@ export default function DoctorsAdmin() {
                 </div>
             ) : (
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                    <table className="w-full text-sm">
+                    <div className="overflow-x-auto">
+                    <table className="w-full text-sm min-w-[620px]">
                         <thead className="bg-slate-50 text-slate-500 text-xs font-bold uppercase">
                             <tr>
                                 <th className="px-4 py-3 text-right">الطبيب</th>
@@ -447,6 +448,7 @@ export default function DoctorsAdmin() {
                             )}
                         </tbody>
                     </table>
+                    </div>{/* /overflow-x-auto */}
                 </div>
             )}
 

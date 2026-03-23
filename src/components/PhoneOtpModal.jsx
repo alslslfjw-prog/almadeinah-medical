@@ -159,7 +159,7 @@ export default function PhoneOtpModal({ onSuccess, onClose }) {
                                 <label className="block text-sm font-bold text-slate-600 mb-3 text-center">
                                     رمز التحقق
                                 </label>
-                                <div className="flex gap-2 justify-center" dir="ltr">
+                                <div className="flex gap-1.5 sm:gap-2 justify-center" dir="ltr">
                                     {Array.from({ length: 6 }).map((_, i) => (
                                         <input
                                             key={i}
@@ -169,7 +169,7 @@ export default function PhoneOtpModal({ onSuccess, onClose }) {
                                             value={otp[i] ?? ''}
                                             onChange={e => handleOtpChar(i, e.target.value)}
                                             onKeyDown={e => handleOtpKeyDown(i, e)}
-                                            className="w-11 h-12 text-center text-xl font-black border-2 border-slate-200 rounded-xl focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200 bg-slate-50 transition"
+                                            className="w-9 sm:w-11 h-12 text-center text-xl font-black border-2 border-slate-200 rounded-xl focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200 bg-slate-50 transition"
                                             autoFocus={i === 0}
                                         />
                                     ))}
