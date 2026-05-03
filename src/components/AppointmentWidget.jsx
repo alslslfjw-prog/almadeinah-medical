@@ -6,7 +6,8 @@ import {
 } from 'lucide-react';
 import { getDoctors } from '../api/doctors';
 import { getClinics } from '../api/clinics';
-import { supabase } from '../lib/supabaseClient';   // only for scans & lab_tests_list (no hooks yet)
+import { getScanCategories, getScansByCategory, getLabCategories, getLabTestsByCategory } from '../api/scans';
+import { supabase } from '../lib/supabaseClient';   // only for lab_tests_list
 import useAuthStore from '../store/authStore';
 import { useSiteSettings } from '../hooks/useSiteSettings';
 import PhoneOtpModal from './PhoneOtpModal';
@@ -37,6 +38,18 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
   const [error, setError] = useState('');
   const [selectedItemPriceUSD, setSelectedItemPriceUSD] = useState(0);
   const [dbPackages, setDbPackages] = useState([]);  // fetched from medical_packages
+
+  // ── Scans cascading dropdowns state ─────────────────────────────────────────
+  const [scanCategories, setScanCategories]         = useState([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState(null);
+  const [scansForCategory, setScansForCategory]     = useState([]);
+  const [scansLoading, setScansLoading]             = useState(false);
+
+  // ── Lab cascading dropdowns state ─────────────────────────────────────────
+  const [labCategories, setLabCategories]           = useState([]);
+  const [selectedLabCategory, setSelectedLabCategory] = useState('');
+  const [testsForLabCategory, setTestsForLabCategory] = useState([]);
+  const [labCatLoading, setLabCatLoading]           = useState(false);
 
   const tabs = [
     { id: 'clinics', label: 'العيادات', icon: <Stethoscope size={18} />, table: 'clinics' },
@@ -107,13 +120,11 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
           const { data: docsData } = await getDoctors({ withClinic: false });
           setAllDoctors(docsData ?? []);
 
-        } else {
-          // scans & lab_tests_list — no dedicated API hook yet, use supabaseClient directly
-          const table = tabs.find(t => t.id === activeTab)?.table;
-          if (!table) return;
-          const { data } = await supabase.from(table).select('id, name, price').order('id', { ascending: true });
-          setPrimaryOptions(data ?? []);
+        } else if (activeTab === 'lab') {
+          // lab tab now handled by its own dedicated useEffects below
+          // (no-op here — just reset state via the effect that fires on tab change)
         }
+        // scans tab: handled by dedicated useEffects below
       } catch (err) {
         console.error("AppointmentWidget fetch error:", err);
       } finally {
@@ -123,6 +134,59 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
 
     fetchPrimaryData();
   }, [activeTab, preSelectedDoctor]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Load scan categories when scans tab becomes active ───────────────────────
+  useEffect(() => {
+    if (activeTab !== 'scans') return;
+    setScanCategories([]);
+    setSelectedCategoryId(null);
+    setScansForCategory([]);
+    setSelectedPrimary('');
+    setSelectedItemPriceUSD(0);
+    setLoading(true);
+    getScanCategories()
+      .then(({ data }) => setScanCategories(data ?? []))
+      .finally(() => setLoading(false));
+  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Load lab categories when lab tab becomes active ───────────────────────
+  useEffect(() => {
+    if (activeTab !== 'lab') return;
+    setLabCategories([]);
+    setSelectedLabCategory('');
+    setTestsForLabCategory([]);
+    setSelectedLabItems([]);
+    setLabSelectionType(null);
+    setLoading(true);
+    getLabCategories()
+      .then(({ data }) => setLabCategories(data ?? []))
+      .finally(() => setLoading(false));
+  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Load tests for the chosen lab category (Dropdown B) ────────────────
+  useEffect(() => {
+    if (!selectedLabCategory) { setTestsForLabCategory([]); return; }
+    setLabCatLoading(true);
+    getLabTestsByCategory(selectedLabCategory)
+      .then(({ data }) => setTestsForLabCategory(data ?? []))
+      .finally(() => setLabCatLoading(false));
+  }, [selectedLabCategory]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Load tests for the chosen category (Dropdown 2) ─────────────────────────
+  useEffect(() => {
+    if (!selectedCategoryId) {
+      setScansForCategory([]);
+      setSelectedPrimary('');
+      setSelectedItemPriceUSD(0);
+      return;
+    }
+    setScansLoading(true);
+    setSelectedPrimary('');
+    setSelectedItemPriceUSD(0);
+    getScansByCategory(selectedCategoryId)
+      .then(({ data }) => setScansForCategory(data ?? []))
+      .finally(() => setScansLoading(false));
+  }, [selectedCategoryId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Filter doctors by clinic (client-side join)
   useEffect(() => {
@@ -141,17 +205,23 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
     const source = activeTab === 'doctors' ? primaryOptions : secondaryOptions;
     const doc = source.find(d => d.name === docName) ?? null;
     setSelectedDoctor(doc);
-    setSelectedItemPriceUSD(doc?.price ?? 0);  // capture doctor USD price
+    setSelectedItemPriceUSD(doc?.price ?? 0);
     setTime('');
+  };
+
+  const handleScanTestChange = (scanName) => {
+    setSelectedPrimary(scanName);
+    const item = scansForCategory.find(s => s.name === scanName);
+    setSelectedItemPriceUSD(item?.price ?? 0);
   };
 
   // Capture price when a scan is selected from the dropdown
   useEffect(() => {
     if (activeTab === 'scans') {
-      const item = primaryOptions.find(o => o.name === selectedPrimary);
+      const item = scansForCategory.find(o => o.name === selectedPrimary);
       setSelectedItemPriceUSD(item?.price ?? 0);
     }
-  }, [selectedPrimary, activeTab, primaryOptions]);
+  }, [selectedPrimary, activeTab, scansForCategory]);
 
   const handleAddSingleTest = (testName) => {
     if (!testName) return;
@@ -165,7 +235,10 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
   const handleAddPackage = (packageName) => {
     if (!packageName) return;
     setLabSelectionType('package');
-    setSelectedLabItems([packageName]);  // always replaces — single selection
+    setSelectedLabItems([packageName]);
+    // Mutual exclusivity: clear lab cascade state
+    setSelectedLabCategory('');
+    setTestsForLabCategory([]);
   };
 
   const removeLabItem = (item) => {
@@ -265,9 +338,12 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
         return;
       }
       finalSelection = selectedLabItems.join('، ');
+    } else if (activeTab === 'scans') {
+      if (!selectedCategoryId) { setError('يرجى اختيار نوع الأشعة'); return; }
+      if (!selectedPrimary)    { setError('يرجى اختيار الفحص المحدد'); return; }
     } else {
       if (!selectedPrimary) {
-        const label = activeTab === 'doctors' ? 'طبيباً' : activeTab === 'scans' ? 'نوع الأشعة' : 'العيادة';
+        const label = activeTab === 'doctors' ? 'طبيباً' : 'العيادة';
         setError(`يرجى اختيار ${label}`);
         return;
       }
@@ -363,34 +439,71 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
         {/* ── Section 1: Primary Selection ─── */}
         {activeTab === 'lab' ? (
           <>
-            <div className="md:col-span-3">
+            {/* ── Dropdown A: Lab Category ── */}
+            <div className="md:col-span-4">
               <label className={`block font-bold mb-2 text-sm ${labSelectionType === 'package' ? 'text-gray-300' : 'text-gray-700'}`}>
-                الفحوصات الفردية
+                فئة الفحص
               </label>
               <div className="relative">
                 <select
-                  disabled={loading}
-                  value=""
-                  onChange={(e) => handleAddSingleTest(e.target.value)}
-                  className={`w-full border py-3.5 px-4 pr-10 rounded-xl focus:outline-none appearance-none transition cursor-pointer font-medium text-sm ${labSelectionType === 'package' ? 'bg-gray-100 border-gray-100 text-gray-400' : 'bg-gray-50 border-gray-200 text-gray-700 focus:ring-2 focus:ring-teal-500'}`}
+                  disabled={loading || labSelectionType === 'package'}
+                  value={selectedLabCategory}
+                  onChange={(e) => { setSelectedLabCategory(e.target.value); }}
+                  className={`w-full border py-3.5 px-4 pr-10 rounded-xl focus:outline-none appearance-none transition font-medium text-sm ${
+                    labSelectionType === 'package'
+                      ? 'bg-gray-100 border-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-gray-50 border-gray-200 text-gray-700 focus:ring-2 focus:ring-teal-500 cursor-pointer'
+                  }`}
                 >
-                  <option value="">اختر فحصاً لإضافته...</option>
-                  {!loading && primaryOptions.map((item, i) => (
-                    <option key={i} value={item.name}>{item.name}</option>
+                  <option value="">{loading ? 'جاري التحميل...' : 'اختر فئة الفحص...'}</option>
+                  {!loading && labCategories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>
                 <ChevronDown className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
               </div>
             </div>
-            <div className="md:col-span-3">
+
+            {/* ── Dropdown B: Specific Test (locked until category chosen) ── */}
+            <div className="md:col-span-4">
+              <label className={`block font-bold mb-2 text-sm ${
+                labSelectionType === 'package' || !selectedLabCategory ? 'text-gray-400' : 'text-gray-700'
+              }`}>
+                الفحص المحدد
+              </label>
+              <div className="relative">
+                <select
+                  disabled={labSelectionType === 'package' || !selectedLabCategory || labCatLoading}
+                  value=""
+                  onChange={(e) => handleAddSingleTest(e.target.value)}
+                  className={`w-full border py-3.5 px-4 pr-10 rounded-xl focus:outline-none appearance-none transition font-medium text-sm ${
+                    labSelectionType === 'package' || !selectedLabCategory
+                      ? 'bg-gray-100 border-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-gray-50 border-gray-200 text-gray-700 focus:ring-2 focus:ring-teal-500 cursor-pointer'
+                  }`}
+                >
+                  <option value="">
+                    {labCatLoading ? 'جارٍ التحميل...' : !selectedLabCategory ? 'اختر الفئة أولاً...' : 'أضف فحصاً...'}
+                  </option>
+                  {!labCatLoading && testsForLabCategory.map(t => (
+                    <option key={t.id} value={t.name}>{t.name}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
+              </div>
+            </div>
+
+            {/* ── Packages (disabled when a test is selected) ── */}
+            <div className="md:col-span-4">
               <label className={`block font-bold mb-2 text-sm ${labSelectionType === 'single' ? 'text-gray-300' : 'text-gray-700'}`}>
                 باقات الفحوصات
               </label>
               <div className="relative">
                 <select
+                  disabled={labSelectionType === 'single'}
                   value=""
                   onChange={(e) => handleAddPackage(e.target.value)}
-                  className={`w-full border py-3.5 px-4 pr-10 rounded-xl focus:outline-none appearance-none transition cursor-pointer font-medium text-sm ${labSelectionType === 'single' ? 'bg-gray-100 border-gray-100 text-gray-400' : 'bg-teal-50 border-teal-100 text-teal-800 focus:ring-2 focus:ring-teal-500'}`}
+                  className={`w-full border py-3.5 px-4 pr-10 rounded-xl focus:outline-none appearance-none transition cursor-pointer font-medium text-sm ${labSelectionType === 'single' ? 'bg-gray-100 border-gray-100 text-gray-400 cursor-not-allowed' : 'bg-teal-50 border-teal-100 text-teal-800 focus:ring-2 focus:ring-teal-500'}`}
                 >
                   <option value="">اختر باقة لإضافتها...</option>
                   {dbPackages.map((pkg) => (
@@ -401,10 +514,58 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
               </div>
             </div>
           </>
+        ) : activeTab === 'scans' ? (
+          <>
+            {/* ── Dropdown 1: Main Category ── */}
+            <div className="md:col-span-3">
+              <label className="block text-gray-700 font-bold mb-2 text-sm">نوع الأشعة</label>
+              <div className="relative">
+                <select
+                  disabled={loading}
+                  value={selectedCategoryId ?? ''}
+                  onChange={(e) => setSelectedCategoryId(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full bg-gray-50 border border-gray-200 text-gray-700 py-3.5 px-4 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 appearance-none transition cursor-pointer font-medium text-sm"
+                >
+                  <option value="">{loading ? 'جاري التحميل...' : 'اختر نوع الأشعة...'}</option>
+                  {!loading && scanCategories.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
+              </div>
+            </div>
+
+            {/* ── Dropdown 2: Specific Test (locked until category chosen) ── */}
+            <div className="md:col-span-3">
+              <label className={`block font-bold mb-2 text-sm ${!selectedCategoryId ? 'text-gray-400' : 'text-gray-700'}`}>
+                الفحص المحدد
+              </label>
+              <div className="relative">
+                <select
+                  disabled={!selectedCategoryId || scansLoading}
+                  value={selectedPrimary}
+                  onChange={(e) => handleScanTestChange(e.target.value)}
+                  className={`w-full border py-3.5 px-4 pr-10 rounded-xl focus:outline-none appearance-none transition font-medium text-sm ${
+                    !selectedCategoryId
+                      ? 'bg-gray-100 border-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-gray-50 border-gray-200 text-gray-700 focus:ring-2 focus:ring-teal-500 cursor-pointer'
+                  }`}
+                >
+                  <option value="">
+                    {scansLoading ? 'جارٍ التحميل...' : !selectedCategoryId ? 'اختر النوع أولاً...' : 'اختر الفحص...'}
+                  </option>
+                  {!scansLoading && scansForCategory.map(s => (
+                    <option key={s.id} value={s.name}>{s.name}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
+              </div>
+            </div>
+          </>
         ) : (
           <div className={activeTab === 'clinics' ? 'md:col-span-3' : 'md:col-span-4'}>
             <label className="block text-gray-700 font-bold mb-2 text-sm">
-              {activeTab === 'doctors' ? 'الطبيب المختار' : activeTab === 'clinics' ? 'اختر العيادة' : 'اختر نوع الأشعة'}
+              {activeTab === 'doctors' ? 'الطبيب المختار' : 'اختر العيادة'}
             </label>
             <div className="relative">
               <select
@@ -451,7 +612,7 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
         )}
 
         {/* ── Section 3: Date & Time ─── */}
-        <div className={activeTab === 'clinics' || activeTab === 'lab' ? 'md:col-span-2' : 'md:col-span-3'}>
+        <div className={activeTab === 'lab' ? 'md:col-span-4' : activeTab === 'clinics' || activeTab === 'scans' ? 'md:col-span-2' : 'md:col-span-3'}>
           <label className="block text-gray-700 font-bold mb-2 text-sm">التاريخ</label>
           <input
             type="date"
@@ -462,13 +623,13 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
           />
         </div>
 
-        <div className={activeTab === 'clinics' || activeTab === 'lab' ? 'md:col-span-2' : 'md:col-span-3'}>
+        <div className={activeTab === 'lab' ? 'md:col-span-4' : activeTab === 'clinics' || activeTab === 'scans' ? 'md:col-span-2' : 'md:col-span-3'}>
           <label className="block text-gray-700 font-bold mb-2 text-sm">الوقت</label>
           {renderTimeInput()}
         </div>
 
         {/* ── Section 4: Submit ─── */}
-        <div className="md:col-span-2">
+        <div className={activeTab === 'lab' ? 'md:col-span-4' : 'md:col-span-2'}>
           <button
             onClick={handleBookNow}
             className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-teal-200 transition transform hover:-translate-y-0.5 flex items-center justify-center gap-2"

@@ -48,6 +48,44 @@ export async function getScanCategories() {
     return { data, error };
 }
 
+/**
+ * Fetch scans filtered by category (for the cascading Dropdown 2 in the booking widget).
+ * @param {number} categoryId
+ */
+export async function getScansByCategory(categoryId) {
+    const { data, error } = await supabase
+        .from('scans')
+        .select('id, name, price')
+        .eq('category_id', categoryId)
+        .order('id', { ascending: true });
+    return { data, error };
+}
+
+/**
+ * Fetch all distinct lab test categories (derived from medical_tests_guide.category).
+ */
+export async function getLabCategories() {
+    const { data, error } = await supabase
+        .from('medical_tests_guide')
+        .select('category')
+        .not('category', 'is', null);
+    const unique = [...new Set((data ?? []).map(r => r.category))].sort();
+    return { data: unique, error };
+}
+
+/**
+ * Fetch lab tests belonging to a specific category (for Dropdown B).
+ * @param {string} category
+ */
+export async function getLabTestsByCategory(category) {
+    const { data, error } = await supabase
+        .from('medical_tests_guide')
+        .select('id, name, price')
+        .eq('category', category)
+        .order('name', { ascending: true });
+    return { data, error };
+}
+
 export async function createScanCategory(payload) {
     try {
         const { data, error } = await supabase.from('scan_categories').insert([payload]).select().single();

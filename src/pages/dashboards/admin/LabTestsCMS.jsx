@@ -2,7 +2,7 @@
  * LabTestsCMS — Standalone page for medical_tests_guide table.
  * دليل الفحوصات — NO inner tabs, NO packages references.
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Plus, Pencil, Trash2, X, Save, Loader2, Search, FlaskConical } from 'lucide-react';
 import { getMedicalTestsGuide, createTestGuide, updateTestGuide, deleteTestGuide } from '../../../api/scans';
 
@@ -71,6 +71,9 @@ export default function LabTestsCMS() {
     const [delItem, setDelItem] = useState(null);
     const [delBusy, setDelBusy] = useState(false);
 
+    // Category mode: 'select' = pick existing | 'create' = type new
+    const [categoryMode, setCategoryMode] = useState('select');
+
     const load = useCallback(async () => {
         setLoading(true);
         const { data } = await getMedicalTestsGuide();
@@ -80,10 +83,17 @@ export default function LabTestsCMS() {
 
     useEffect(() => { load(); }, [load]);
 
-    const openAdd = () => { setEditId(null); setForm(EMPTY); setErr(''); setOpen(true); };
+    // Derive sorted unique categories from already-loaded tests — no extra DB query
+    const categoryOptions = useMemo(
+        () => [...new Set(tests.map(t => t.category).filter(Boolean))].sort(),
+        [tests]
+    );
+
+    const openAdd = () => { setEditId(null); setForm(EMPTY); setCategoryMode('select'); setErr(''); setOpen(true); };
     const openEdit = t => {
         setEditId(t.id);
         setForm({ name: t.name ?? '', category: t.category ?? '', about: t.about ?? '', reasons: Array.isArray(t.reasons) ? t.reasons : [], prep: t.prep ?? '', price: t.price ?? 0 });
+        setCategoryMode('select');
         setErr(''); setOpen(true);
     };
     const closePanel = () => { setOpen(false); setErr(''); };
@@ -92,15 +102,26 @@ export default function LabTestsCMS() {
     const handleSave = async () => {
         setErr('');
         if (!form.name.trim()) { setErr('اسم الفحص مطلوب'); return; }
+
+        // Resolve final category value from whichever mode is active
+        let finalCategory = null;
+        if (categoryMode === 'select') {
+            finalCategory = form.category || null;
+        } else {
+            const trimmed = form.category.trim();
+            if (!trimmed) { setErr('يرجى إدخال اسم الفئة الجديدة'); return; }
+            finalCategory = trimmed;
+        }
+
         setSaving(true);
         try {
             const payload = {
-                name: form.name.trim(),
-                category: form.category.trim() || null,
-                about: form.about.trim() || null,
-                reasons: form.reasons.length ? form.reasons : null,
-                prep: form.prep.trim() || null,
-                price: form.price !== '' ? Number(form.price) : 0,
+                name:     form.name.trim(),
+                category: finalCategory,
+                about:    form.about.trim() || null,
+                reasons:  form.reasons.length ? form.reasons : null,
+                prep:     form.prep.trim() || null,
+                price:    form.price !== '' ? Number(form.price) : 0,
             };
             const { error } = editId ? await updateTestGuide(editId, payload) : await createTestGuide(payload);
             if (error) { setErr(error.message); return; }
@@ -193,10 +214,54 @@ export default function LabTestsCMS() {
                                     <input value={form.name} onChange={e => setField('name', e.target.value)}
                                         className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-slate-50" />
                                 </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 mb-1">الفئة</label>
-                                    <input value={form.category} onChange={e => setField('category', e.target.value)}
-                                        className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-slate-50" placeholder="دم · بول · هرمونات" />
+                                <div className="col-span-2">
+                                    <label className="block text-xs font-bold text-slate-500 mb-2">الفئة</label>
+
+                                    {/* ── Segmented Toggle ── */}
+                                    <div className="flex bg-slate-100 rounded-xl p-1 mb-3 gap-1">
+                                        {[
+                                            { key: 'select', label: 'اختر من القائمة' },
+                                            { key: 'create', label: 'أضف فئة جديدة' },
+                                        ].map(m => (
+                                            <button
+                                                key={m.key}
+                                                type="button"
+                                                onClick={() => { setCategoryMode(m.key); setField('category', ''); }}
+                                                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition ${
+                                                    categoryMode === m.key
+                                                        ? 'bg-white text-teal-700 shadow-sm'
+                                                        : 'text-slate-500 hover:text-slate-700'
+                                                }`}
+                                            >
+                                                {m.label}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    {/* ── Mode: Select Existing ── */}
+                                    {categoryMode === 'select' && (
+                                        <select
+                                            value={form.category}
+                                            onChange={e => setField('category', e.target.value)}
+                                            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-400 bg-slate-50"
+                                        >
+                                            <option value="">— بدون فئة —</option>
+                                            {categoryOptions.map(cat => (
+                                                <option key={cat} value={cat}>{cat}</option>
+                                            ))}
+                                        </select>
+                                    )}
+
+                                    {/* ── Mode: Create New ── */}
+                                    {categoryMode === 'create' && (
+                                        <input
+                                            value={form.category}
+                                            onChange={e => setField('category', e.target.value)}
+                                            placeholder="مثال: الغدة الكظرية..."
+                                            className="w-full border border-teal-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-400 bg-teal-50/30"
+                                            autoFocus
+                                        />
+                                    )}
                                 </div>
                             </div>
                             {/* Price */}
