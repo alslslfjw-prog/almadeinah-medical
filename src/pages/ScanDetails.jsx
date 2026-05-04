@@ -1,17 +1,24 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useSiteSettings } from '../hooks/useSiteSettings';
+import { useScanSlotsForDate } from '../hooks/useScanSchedules';
+import TimeSlotPicker from '../components/TimeSlotPicker';
+import { toLocalDateKey } from '../utils/doctorScheduleDates';
 
 export default function ScanDetails() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [scan, setScan] = useState(null);
   const [loading, setLoading] = useState(true);
   const siteSettings = useSiteSettings();
 
-  // --- NEW: Form State for Booking ---
-  const [bookingForm, setBookingForm] = useState({ name: '', phone: '' });
-  const [loadingBooking, setLoadingBooking] = useState(false);
+  const [date, setDate] = useState('');
+  const [time, setTime] = useState('');
+  const [selectedScanSlot, setSelectedScanSlot] = useState(null);
+  const [error, setError] = useState('');
+  const { slots: selectedDateSlots, isLoading: selectedDateSlotsLoading } =
+    useScanSlotsForDate(id, date);
 
   // Fetch Scan Data
   useEffect(() => {
@@ -40,32 +47,29 @@ export default function ScanDetails() {
     return text.split('\n').filter(line => line.trim() !== '');
   };
 
-  const handleBookingSubmit = async () => {
-    if (!bookingForm.name || !bookingForm.phone) {
-        alert("يرجى كتابة الاسم ورقم الهاتف لطلب الفحص");
-        return;
-    }
+  const handleBookingSubmit = () => {
+    setError('');
+    if (!date) { setError('يرجى اختيار التاريخ'); return; }
+    if (!time || !selectedScanSlot) { setError('يرجى اختيار موعد أشعة متاح'); return; }
 
-    setLoadingBooking(true);
-    try {
-        const { error } = await supabase.from('appointments').insert([{
-            patient_name: bookingForm.name,
-            phone_number: bookingForm.phone,
-            scan_id: scan.id, // Linking to this specific scan
-            status: 'pending'
-        }]);
-
-        if (error) throw error;
-        
-        alert("تم استلام طلبك بنجاح! سيتصل بك فريق الاستقبال قريباً لتأكيد الموعد.");
-        setBookingForm({ name: '', phone: '' }); // Reset form
-
-    } catch (error) {
-        console.error("Booking Error:", error);
-        alert("حدث خطأ، حاول مرة أخرى.");
-    } finally {
-        setLoadingBooking(false);
-    }
+    const rate = siteSettings?.usd_to_yer_rate ?? 0;
+    const priceUSD = Number(scan?.price) || 0;
+    navigate('/checkout', {
+      state: {
+        type: 'scans',
+        primarySelection: scan.name,
+        scanId: scan.id,
+        scanTimeSlotId: selectedScanSlot.id,
+        date,
+        time,
+        slotStart: selectedScanSlot.start_time,
+        slotEnd: selectedScanSlot.end_time,
+        priceUSD,
+        priceYER: rate && priceUSD ? Math.round(priceUSD * rate) : 0,
+        isPackage: false,
+      },
+    });
+    return;
   };
 
 
@@ -137,39 +141,49 @@ export default function ScanDetails() {
                             يرجى التأكد من قراءة تعليمات التحضير جيداً قبل الحجز.
                         </div>
 
-                        {/* --- NEW INPUT FIELDS --- */}
+                        {/* --- Date + generated scan slot picker --- */}
                         <div>
+                            <label className="text-xs font-bold text-gray-500 mb-1 block">اختر التاريخ</label>
                             <input 
-                                type="text" 
-                                placeholder="الاسم الكريم" 
+                                type="date"
+                                min={toLocalDateKey(new Date())}
                                 className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm outline-none focus:border-teal-500 transition"
-                                value={bookingForm.name}
-                                onChange={(e) => setBookingForm({...bookingForm, name: e.target.value})}
+                                value={date}
+                                onChange={(e) => {
+                                    setDate(e.target.value);
+                                    setTime('');
+                                    setSelectedScanSlot(null);
+                                    setError('');
+                                }}
                             />
                         </div>
                         <div>
-                            <input 
-                                type="tel" 
-                                placeholder="رقم الجوال للتواصل" 
-                                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm outline-none focus:border-teal-500 transition"
-                                value={bookingForm.phone}
-                                onChange={(e) => setBookingForm({...bookingForm, phone: e.target.value})}
+                            <label className="text-xs font-bold text-gray-500 mb-1 block">اختر الوقت</label>
+                            <TimeSlotPicker
+                                placeholder="اختر الموعد..."
+                                value={time}
+                                slots={selectedDateSlots}
+                                selectedSlot={selectedScanSlot}
+                                resetKey={`scan-details-${id}-${date}`}
+                                disabledLabel={!date ? 'اختر التاريخ أولاً' : null}
+                                loading={selectedDateSlotsLoading}
+                                emptyLabel="لا توجد مواعيد أشعة متاحة في هذا التاريخ"
+                                onSelectSlot={(slot, slotRange) => {
+                                    setSelectedScanSlot(slot);
+                                    setTime(slotRange);
+                                    setError('');
+                                }}
                             />
                         </div>
 
+                        {error && <p className="text-red-500 text-xs bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>}
+
                         <button 
                             onClick={handleBookingSubmit}
-                            disabled={loadingBooking}
-                            className={`w-full bg-teal-500 hover:bg-teal-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-teal-500/20 transition transform active:scale-[0.98] flex items-center justify-center gap-2 ${loadingBooking ? 'opacity-70' : ''}`}
+                            className="w-full bg-teal-500 hover:bg-teal-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-teal-500/20 transition transform active:scale-[0.98] flex items-center justify-center gap-2"
                         >
-                            {loadingBooking ? (
-                                <span>جارٍ الإرسال...</span>
-                            ) : (
-                                <>
-                                    <i className="fas fa-check-circle"></i>
-                                    <span>تأكيد طلب الفحص</span>
-                                </>
-                            )}
+                            <i className="fas fa-check-circle"></i>
+                            <span>متابعة تأكيد الحجز</span>
                         </button>
                     </div>
 

@@ -1,19 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
-  Calendar, Clock, ChevronDown, ChevronRight, Phone,
+  Calendar, Clock, ChevronDown, Phone,
   Stethoscope, User, Activity, Microscope, CheckCircle, X, LogIn
 } from 'lucide-react';
 import { getDoctors } from '../api/doctors';
 import { getDoctorSlotsForDate } from '../api/doctorSchedules';
+import { getScanSlotsForDate } from '../api/scanSchedules';
 import { getClinics } from '../api/clinics';
 import { getScanCategories, getScansByCategory, getLabCategories, getLabTestsByCategory } from '../api/scans';
 import { supabase } from '../lib/supabaseClient';   // only for lab_tests_list
 import useAuthStore from '../store/authStore';
 import { useSiteSettings } from '../hooks/useSiteSettings';
 import PhoneOtpModal from './PhoneOtpModal';
+import TimeSlotPicker from './TimeSlotPicker';
 import { toLocalDateKey } from '../utils/doctorScheduleDates';
-import { formatTimeArabic } from '../utils/dateFormatter';
 
 
 
@@ -38,8 +39,9 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
   const [doctorTimeSlots, setDoctorTimeSlots] = useState([]);
   const [doctorSchedulesLoading, setDoctorSchedulesLoading] = useState(false);
   const [selectedDoctorSlot, setSelectedDoctorSlot] = useState(null);
-  const [timePopoverOpen, setTimePopoverOpen] = useState(false);
-  const [selectedHour, setSelectedHour] = useState(null);
+  const [scanTimeSlots, setScanTimeSlots] = useState([]);
+  const [scanSchedulesLoading, setScanSchedulesLoading] = useState(false);
+  const [selectedScanSlot, setSelectedScanSlot] = useState(null);
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [loading, setLoading] = useState(false);
@@ -65,14 +67,6 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
     { id: 'scans', label: 'المدينة سكان', icon: <Activity size={18} />, table: 'scans' },
     { id: 'lab', label: 'الفحوصات', icon: <Microscope size={18} />, table: 'medical_tests_guide' },
   ];
-
-  /** Greyed-out disabled placeholder */
-  const SlotDisabled = ({ label }) => (
-    <div className="w-full bg-gray-100 border border-dashed border-gray-300 text-gray-400 py-3.5 px-4 rounded-xl text-sm font-medium flex items-center gap-2 select-none cursor-not-allowed">
-      <Clock size={15} className="shrink-0" />
-      <span>{label}</span>
-    </div>
-  );
 
   const normalizeText = (text) => {
     if (!text) return "";
@@ -148,6 +142,8 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
     setScansForCategory([]);
     setSelectedPrimary('');
     setSelectedItemPriceUSD(0);
+    setScanTimeSlots([]);
+    setSelectedScanSlot(null);
     setLoading(true);
     getScanCategories()
       .then(({ data }) => setScanCategories(data ?? []))
@@ -183,11 +179,15 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
       setScansForCategory([]);
       setSelectedPrimary('');
       setSelectedItemPriceUSD(0);
+      setScanTimeSlots([]);
+      setSelectedScanSlot(null);
       return;
     }
     setScansLoading(true);
     setSelectedPrimary('');
     setSelectedItemPriceUSD(0);
+    setScanTimeSlots([]);
+    setSelectedScanSlot(null);
     getScansByCategory(selectedCategoryId)
       .then(({ data }) => setScansForCategory(data ?? []))
       .finally(() => setScansLoading(false));
@@ -213,7 +213,6 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
     setSelectedItemPriceUSD(doc?.price ?? 0);
     setTime('');
     setSelectedDoctorSlot(null);
-    setTimePopoverOpen(false);
   };
 
   useEffect(() => {
@@ -221,7 +220,6 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
     if (!isDoctorBooking || !selectedDoctor?.id || !date) {
       setDoctorTimeSlots([]);
       setSelectedDoctorSlot(null);
-      setTimePopoverOpen(false);
       setDoctorSchedulesLoading(false);
       return;
     }
@@ -246,7 +244,37 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
     setSelectedPrimary(scanName);
     const item = scansForCategory.find(s => s.name === scanName);
     setSelectedItemPriceUSD(item?.price ?? 0);
+    setTime('');
+    setSelectedScanSlot(null);
   };
+
+  const selectedScan = activeTab === 'scans'
+    ? scansForCategory.find(o => o.name === selectedPrimary) ?? null
+    : null;
+
+  useEffect(() => {
+    if (activeTab !== 'scans' || !selectedScan?.id || !date) {
+      setScanTimeSlots([]);
+      setSelectedScanSlot(null);
+      setScanSchedulesLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setScanTimeSlots([]);
+    setSelectedScanSlot(null);
+    setScanSchedulesLoading(true);
+    getScanSlotsForDate(selectedScan.id, date)
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        setScanTimeSlots(error ? [] : data ?? []);
+      })
+      .finally(() => {
+        if (!cancelled) setScanSchedulesLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [activeTab, selectedScan?.id, date]);
 
   // Capture price when a scan is selected from the dropdown
   useEffect(() => {
@@ -281,22 +309,9 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
     if (updated.length === 0) { setLabSelectionType(null); setSelectedItemPriceUSD(0); }
   };
 
-  const formatSlotRange = (slot) =>
-    `${formatTimeArabic(slot.start_time)} - ${formatTimeArabic(slot.end_time)}`;
-
-  const groupSlotsByHour = (slots) => {
-    const map = new Map();
-    slots.forEach(slot => {
-      const hour = parseInt(slot.start_time.split(':')[0], 10);
-      if (!map.has(hour)) map.set(hour, []);
-      map.get(hour).push(slot);
-    });
-    return map;
-  };
-
   const renderTimeInput = () => {
-    // ── Scans / Lab: native time input ──────────────────────────────────────
-    if (activeTab === 'scans' || activeTab === 'lab') {
+    // ── Lab: native time input ──────────────────────────────────────────────
+    if (activeTab === 'lab') {
       return (
         <input
           type="time"
@@ -308,127 +323,48 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
       );
     }
 
-    // ── Doctors / Clinics: hour-tabbed slot picker ───────────────────────────
-    if (!selectedDoctor) return <SlotDisabled label="اختر الطبيب أولاً" />;
-    if (!date)           return <SlotDisabled label="اختر التاريخ أولاً" />;
-    if (doctorSchedulesLoading) return <SlotDisabled label="جاري تحميل المواعيد المتاحة..." />;
-    if (doctorTimeSlots.length === 0) return <SlotDisabled label="لا توجد مواعيد متاحة في هذا التاريخ" />;
-
-    const slotsByHour = groupSlotsByHour(doctorTimeSlots);
-    const hours = [...slotsByHour.keys()].sort((a, b) => a - b);
-    const activeHour = selectedHour ?? hours[0];
-    const slotsForHour = slotsByHour.get(activeHour) ?? [];
+    if (activeTab === 'scans') {
+      return (
+        <TimeSlotPicker
+          value={time}
+          slots={scanTimeSlots}
+          selectedSlot={selectedScanSlot}
+          resetKey={`scan-${selectedScan?.id ?? 'none'}-${date}`}
+          disabledLabel={
+            !selectedCategoryId
+              ? 'اختر نوع الأشعة أولاً'
+              : !selectedScan
+                ? 'اختر الفحص أولاً'
+                : !date
+                  ? 'اختر التاريخ أولاً'
+                  : null
+          }
+          loading={scanSchedulesLoading}
+          emptyLabel="لا توجد مواعيد أشعة متاحة في هذا التاريخ"
+          onSelectSlot={(slot, slotRange) => {
+            setSelectedScanSlot(slot);
+            setTime(slotRange);
+            setError('');
+          }}
+        />
+      );
+    }
 
     return (
-      <div className="relative">
-        {/* Trigger button */}
-        <button
-          type="button"
-          onClick={() => {
-            setTimePopoverOpen(open => !open);
-            setSelectedHour(null); // reset to first hour each open
-          }}
-          className="w-full bg-gray-50 border border-gray-200 text-gray-700 py-3.5 px-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 transition cursor-pointer font-medium text-xs md:text-sm text-right"
-        >
-          <Clock size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-          <span className={time ? 'text-gray-700' : 'text-gray-400'}>
-            {time || 'اختر الموعد...'}
-          </span>
-          <ChevronDown className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
-        </button>
-
-        {timePopoverOpen && (
-          <div className="absolute z-[100] top-full mt-2 w-full bg-white border border-gray-100 rounded-2xl shadow-2xl overflow-hidden">
-
-            {/* ── STEP 1: Hours grid (no hour selected yet) ─────────────── */}
-            {!selectedHour ? (
-              <div className="time-picker-scroll time-picker-hours-scroll p-3 pb-4">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2 px-1">اختر الساعة</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {hours.map(hour => {
-                    const slotsInHour = slotsByHour.get(hour) ?? [];
-                    const allBooked = slotsInHour.every(s => s.is_blocked || s.status !== 'available');
-                    return (
-                      <button
-                        key={hour}
-                        type="button"
-                        disabled={allBooked}
-                        onClick={() => setSelectedHour(hour)}
-                        className={`py-2.5 px-2 rounded-xl border text-xs font-bold transition text-center ${
-                          allBooked
-                            ? 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed'
-                            : 'bg-white border-teal-100 text-teal-700 hover:bg-teal-500 hover:text-white hover:border-teal-500 hover:shadow-sm'
-                        }`}
-                      >
-                        {formatTimeArabic(`${String(hour).padStart(2, '0')}:00:00`)}
-                        <span className="block text-[9px] font-medium mt-0.5 opacity-60">
-                          {slotsInHour.filter(s => !s.is_blocked && s.status === 'available').length} متاح
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : (
-
-              /* ── STEP 2: Slots for selected hour ──────────────────────── */
-              <div>
-                {/* Back header */}
-                <div className="flex items-center gap-2 px-3 py-2.5 border-b border-gray-100">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedHour(null)}
-                    className="p-1 rounded-lg hover:bg-gray-100 transition text-gray-400 hover:text-gray-600"
-                    aria-label="رجوع"
-                  >
-                    <ChevronRight size={16} />
-                  </button>
-                  <span className="text-xs font-bold text-gray-700">
-                    مواعيد الساعة {formatTimeArabic(`${String(selectedHour).padStart(2, '0')}:00:00`)}
-                  </span>
-                </div>
-
-                {/* Slot grid */}
-                <div className="time-picker-scroll time-picker-slots-scroll p-3 pb-4">
-                  <div className="grid grid-cols-3 gap-2">
-                    {slotsForHour.map(slot => {
-                      const unavailable = slot.is_blocked || slot.status !== 'available';
-                      const selected = selectedDoctorSlot?.id === slot.id;
-                      return (
-                        <button
-                          key={slot.id}
-                          type="button"
-                          disabled={unavailable}
-                          onClick={() => {
-                            setSelectedDoctorSlot(slot);
-                            setTime(formatSlotRange(slot));
-                            setTimePopoverOpen(false);
-                            setError('');
-                          }}
-                          className={`min-h-11 rounded-xl border px-2 py-2 text-xs font-bold transition ${
-                            selected
-                              ? 'bg-teal-600 border-teal-600 text-white shadow-md shadow-teal-100'
-                              : unavailable
-                                ? 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed'
-                                : 'bg-white border-teal-100 text-teal-700 hover:bg-teal-50 hover:border-teal-200'
-                          }`}
-                        >
-                          <span className="block">{formatTimeArabic(slot.start_time)}</span>
-                          {unavailable && (
-                            <span className="block text-[10px] font-medium mt-0.5">
-                              {slot.status === 'booked' ? 'محجوز' : 'غير متاح'}
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+      <TimeSlotPicker
+        value={time}
+        slots={doctorTimeSlots}
+        selectedSlot={selectedDoctorSlot}
+        resetKey={`doctor-${selectedDoctor?.id ?? 'none'}-${date}`}
+        disabledLabel={!selectedDoctor ? 'اختر الطبيب أولاً' : !date ? 'اختر التاريخ أولاً' : null}
+        loading={doctorSchedulesLoading}
+        emptyLabel="لا توجد مواعيد متاحة في هذا التاريخ"
+        onSelectSlot={(slot, slotRange) => {
+          setSelectedDoctorSlot(slot);
+          setTime(slotRange);
+          setError('');
+        }}
+      />
     );
   };
 
@@ -488,15 +424,24 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
     }
 
     // ── Build booking data object ────────────────────────────────────────────
+    if (activeTab === 'scans' && !selectedScanSlot) {
+      setError('يرجى اختيار موعد أشعة متاح');
+      return;
+    }
+
+    const activeSlot = activeTab === 'scans' ? selectedScanSlot : selectedDoctorSlot;
+
     const bookingData = {
       type:             activeTab,
       primarySelection: finalSelection,
       doctor:           selectedDoctor,
       date,
       time,
-      doctorTimeSlotId: selectedDoctorSlot?.id ?? null,
-      slotStart:        selectedDoctorSlot?.start_time ?? null,
-      slotEnd:          selectedDoctorSlot?.end_time ?? null,
+      doctorTimeSlotId: activeTab === 'scans' ? null : selectedDoctorSlot?.id ?? null,
+      scanId:           activeTab === 'scans' ? selectedScan?.id ?? null : null,
+      scanTimeSlotId:   activeTab === 'scans' ? selectedScanSlot?.id ?? null : null,
+      slotStart:        activeSlot?.start_time ?? null,
+      slotEnd:          activeSlot?.end_time ?? null,
       isPackage:     labSelectionType === 'package',
       patientUserId: user?.id ?? null,
       priceUSD:      selectedItemPriceUSD,
@@ -757,7 +702,7 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
               setDate(e.target.value);
               setTime('');
               setSelectedDoctorSlot(null);
-              setTimePopoverOpen(false);
+              setSelectedScanSlot(null);
             }}
             className="w-full bg-gray-50 border border-gray-200 text-gray-700 py-3.5 px-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 transition font-medium text-sm"
           />

@@ -2,10 +2,10 @@
  * @module api/appointments
  * @description All Supabase data operations for the `appointments` table.
  *
- * Live schema (read 2026-03-08):
+ * Live schema (read 2026-05-05):
  *   id, created_at, patient_name, phone_number, appointment_date (date),
- *   appointment_time (time), doctor_id (fk → doctors), scan_id (fk → scans),
- *   status (text, default 'pending')
+ *   appointment_time (text), doctor_id (fk -> doctors), scan_id (fk -> scans),
+ *   doctor_time_slot_id, scan_time_slot_id, status (text, default 'pending')
  *
  * NOTE: The column is `phone_number`, NOT `patient_phone`.
  */
@@ -22,7 +22,7 @@ import { supabase } from '../lib/supabaseClient';
 export async function getAllAppointments({ status, from, to } = {}) {
     let query = supabase
         .from('appointments')
-        .select('*, doctors(id, name, title, category, clinics(name)), scans(id, name), doctor_time_slots(id, slot_date, start_time, end_time, status)')
+        .select('*, doctors(id, name, title, category, clinics(name)), scans(id, name), doctor_time_slots(id, slot_date, start_time, end_time, status), scan_time_slots(id, slot_date, start_time, end_time, status)')
         .order('created_at', { ascending: false });
 
     if (status) query = query.eq('status', status);
@@ -41,7 +41,7 @@ export async function getAllAppointments({ status, from, to } = {}) {
 export async function getMyAppointments() {
     const { data, error } = await supabase
         .from('appointments')
-        .select('*, doctors(id, name, title, image_url, clinics(name)), scans(id, name), doctor_time_slots(id, slot_date, start_time, end_time, status)')
+        .select('*, doctors(id, name, title, image_url, clinics(name)), scans(id, name), doctor_time_slots(id, slot_date, start_time, end_time, status), scan_time_slots(id, slot_date, start_time, end_time, status)')
         .order('appointment_date', { ascending: false });
     return { data, error };
 }
@@ -56,6 +56,7 @@ export async function getMyAppointments() {
  *   appointment_date: string,   // ISO date 'YYYY-MM-DD'
  *   appointment_time: string,   // 'HH:MM:SS' or 'HH:MM'
  *   doctor_time_slot_id?: number|null,
+ *   scan_time_slot_id?: number|null,
  *   doctor_id?: number|null,
  *   scan_id?: number|null,
  *   status?: string
@@ -72,6 +73,7 @@ export async function createAppointment(payload) {
                 appointment_date: payload.appointment_date ?? null,
                 appointment_time: payload.appointment_time ?? null,
                 doctor_time_slot_id: payload.doctor_time_slot_id ?? null,
+                scan_time_slot_id: payload.scan_time_slot_id ?? null,
                 doctor_id: payload.doctor_id ?? null,
                 scan_id: payload.scan_id ?? null,
                 status: payload.status ?? 'pending',
@@ -122,7 +124,7 @@ export async function cancelAppointment(id) {
 /**
  * Update any fields of an appointment (admin rescheduling / status override).
  * @param {number} id
- * @param {{ patient_name?: string, phone_number?: string, appointment_date?: string, appointment_time?: string, doctor_time_slot_id?: number|null, status?: string }} updates
+ * @param {{ patient_name?: string, phone_number?: string, appointment_date?: string, appointment_time?: string, doctor_time_slot_id?: number|null, scan_time_slot_id?: number|null, status?: string }} updates
  */
 export async function updateAppointment(id, updates) {
     try {

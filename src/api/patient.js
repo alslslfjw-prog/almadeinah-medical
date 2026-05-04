@@ -50,7 +50,7 @@ export async function getMyAppointments() {
 
     const { data, error } = await supabase
         .from('appointments')
-        .select('*, doctors(id, name, title, image_url, clinics(name)), scans(id, name)')
+        .select('*, doctors(id, name, title, image_url, clinics(name)), scans(id, name), doctor_time_slots(id, slot_date, start_time, end_time, status), scan_time_slots(id, slot_date, start_time, end_time, status)')
         .eq('patient_user_id', user.id)
         .order('appointment_date', { ascending: false });
     return { data: data ?? [], error };
