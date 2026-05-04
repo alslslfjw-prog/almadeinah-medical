@@ -61,29 +61,58 @@ export async function getScansByCategory(categoryId) {
     return { data, error };
 }
 
+// ─── LAB CATEGORIES CRUD ─────────────────────────────────────────────────────
+
 /**
- * Fetch all distinct lab test categories (derived from medical_tests_guide.category).
+ * Fetch all lab categories from the dedicated table (id, name).
+ * Used by the booking widget (Dropdown A) and the admin CMS tabs.
  */
 export async function getLabCategories() {
     const { data, error } = await supabase
-        .from('medical_tests_guide')
-        .select('category')
-        .not('category', 'is', null);
-    const unique = [...new Set((data ?? []).map(r => r.category))].sort();
-    return { data: unique, error };
+        .from('lab_categories')
+        .select('id, name')
+        .order('name', { ascending: true });
+    return { data, error };
 }
 
 /**
- * Fetch lab tests belonging to a specific category (for Dropdown B).
- * @param {string} category
+ * Fetch lab tests belonging to a specific category (for booking widget Dropdown B).
+ * @param {number} categoryId  — the integer id from lab_categories
  */
-export async function getLabTestsByCategory(category) {
+export async function getLabTestsByCategory(categoryId) {
     const { data, error } = await supabase
         .from('medical_tests_guide')
         .select('id, name, price')
-        .eq('category', category)
+        .eq('category_id', categoryId)
         .order('name', { ascending: true });
     return { data, error };
+}
+
+export async function createLabCategory(name) {
+    const { data, error } = await supabase
+        .from('lab_categories')
+        .insert([{ name: name.trim() }])
+        .select()
+        .single();
+    return { data, error };
+}
+
+export async function updateLabCategory(id, name) {
+    const { data, error } = await supabase
+        .from('lab_categories')
+        .update({ name: name.trim() })
+        .eq('id', id)
+        .select()
+        .single();
+    return { data, error };
+}
+
+export async function deleteLabCategory(id) {
+    const { error } = await supabase
+        .from('lab_categories')
+        .delete()
+        .eq('id', id);
+    return { error };
 }
 
 export async function createScanCategory(payload) {
@@ -194,13 +223,13 @@ export async function getLabTests() {
  * @param {{ category?: string }} [opts]
  * @returns {Promise<{ data: Array, error: object|null }>}
  */
-export async function getMedicalTestsGuide({ category } = {}) {
+export async function getMedicalTestsGuide({ category_id } = {}) {
     let query = supabase
         .from('medical_tests_guide')
-        .select('*')
+        .select('*, lab_categories(id, name)')
         .order('name', { ascending: true });
 
-    if (category) query = query.eq('category', category);
+    if (category_id) query = query.eq('category_id', category_id);
 
     const { data, error } = await query;
     return { data, error };

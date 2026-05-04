@@ -57,6 +57,12 @@ function fmtTime(t) {
     // appointment_time is now TEXT: may be an Arabic shift label ("05:00 ص - 09:00 م")
     // or a plain HH:MM string from scans/lab bookings
     if (/[\u0600-\u06FF]/.test(t)) return t;          // Arabic string — display as-is
+    if (String(t).includes(' - ')) {
+        return String(t)
+            .split(' - ')
+            .map(part => fmtTime(part))
+            .join(' - ');
+    }
     const parts = t.split(':').map(Number);
     if (parts.length < 2 || isNaN(parts[0])) return t; // unknown format — display as-is
     const h = parts[0], m = parts[1];

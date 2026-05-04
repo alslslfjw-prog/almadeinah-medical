@@ -2,6 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDoctors } from '../hooks/useDoctors';
 import { useAppointments } from '../hooks/useAppointments';
+import { getDoctorSlotsForDate } from '../api/doctorSchedules';
+import { formatTimeArabic } from '../utils/dateFormatter';
+import { toLocalDateKey } from '../utils/doctorScheduleDates';
 
 const Doctors = () => {
   const navigate = useNavigate();
@@ -17,6 +20,10 @@ const Doctors = () => {
   // Quick Booking Modal state
   const [bookingDoctor, setBookingDoctor] = useState(null);
   const [formData, setFormData] = useState({ name: '', phone: '', date: '', time: '' });
+  const [doctorSlots, setDoctorSlots] = useState([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [slotPickerOpen, setSlotPickerOpen] = useState(false);
 
   const categories = [
     'الكل', 'باطنية', 'القلب', 'أطفال', 'نساء وولادة', 'عظام', 'أنف وأذن', 'عيون', 'أسنان', 'تغذية', 'جراحة عامة', 'الأشعة التشخيصية', 'مخ وأعصاب', 'أورام', 'أمراض دم', 'مسالك بولية', 'مختبر'
@@ -54,7 +61,37 @@ const Doctors = () => {
     e.stopPropagation();
     setBookingDoctor(doctor);
     setFormData({ name: '', phone: '', date: '', time: '' });
+    setDoctorSlots([]);
+    setSelectedSlot(null);
+    setSlotPickerOpen(false);
   };
+
+  useEffect(() => {
+    if (!bookingDoctor?.id || !formData.date) {
+      setDoctorSlots([]);
+      setSelectedSlot(null);
+      setSlotsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setDoctorSlots([]);
+    setSelectedSlot(null);
+    setSlotsLoading(true);
+
+    getDoctorSlotsForDate(bookingDoctor.id, formData.date)
+      .then(({ data, error }) => {
+        if (!cancelled) setDoctorSlots(error ? [] : data ?? []);
+      })
+      .finally(() => {
+        if (!cancelled) setSlotsLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [bookingDoctor?.id, formData.date]);
+
+  const formatSlotRange = (slot) =>
+    `${formatTimeArabic(slot.start_time)} - ${formatTimeArabic(slot.end_time)}`;
 
   // ✅ Now uses useAppointments hook — no inline supabase call
   const handleSubmitBooking = async () => {
@@ -63,15 +100,26 @@ const Doctors = () => {
       return;
     }
 
+    if (!formData.date || !selectedSlot) {
+      alert('يرجى اختيار التاريخ والموعد المتاح');
+      return;
+    }
+
     const { success } = await createAppointment({
       patient_name: formData.name,
       phone_number: formData.phone,
       appointment_date: formData.date || null,
       appointment_time: formData.time || null,
+      doctor_time_slot_id: selectedSlot.id,
       doctor_id: bookingDoctor.id,
+      status: 'pending',
     });
 
-    if (success) setBookingDoctor(null);
+    if (success) {
+      setBookingDoctor(null);
+      setSelectedSlot(null);
+      setSlotPickerOpen(false);
+    }
   };
 
   return (
@@ -224,19 +272,73 @@ const Doctors = () => {
                   <label className="block text-xs font-bold text-gray-500 mb-1">التاريخ</label>
                   <input
                     type="date"
+                    min={toLocalDateKey(new Date())}
                     className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 focus:outline-none focus:border-teal-500"
                     value={formData.date}
-                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, date: e.target.value, time: '' });
+                      setSelectedSlot(null);
+                      setSlotPickerOpen(false);
+                    }}
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-500 mb-1">الوقت</label>
-                  <input
-                    type="time"
-                    className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 focus:outline-none focus:border-teal-500"
-                    value={formData.time}
-                    onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-                  />
+                  <div className="relative">
+                    <button
+                      type="button"
+                      disabled={!formData.date || slotsLoading || doctorSlots.length === 0}
+                      onClick={() => setSlotPickerOpen(open => !open)}
+                      className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 focus:outline-none focus:border-teal-500 text-right text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      <span className={formData.time ? 'text-gray-700 font-bold' : 'text-gray-400'}>
+                        {!formData.date
+                          ? 'اختر التاريخ أولاً'
+                          : slotsLoading
+                            ? 'جاري التحميل...'
+                            : doctorSlots.length === 0
+                              ? 'لا توجد مواعيد'
+                              : formData.time || 'اختر الموعد'}
+                      </span>
+                    </button>
+                    {slotPickerOpen && doctorSlots.length > 0 && (
+                      <div className="time-picker-scroll absolute z-30 mt-2 w-full bg-white border border-gray-100 rounded-xl shadow-xl p-2 max-h-[min(14rem,42dvh)]">
+                        <div className="grid grid-cols-2 gap-2">
+                          {doctorSlots.map(slot => {
+                            const unavailable = slot.is_blocked || slot.status !== 'available';
+                            const selected = selectedSlot?.id === slot.id;
+                            return (
+                              <button
+                                key={slot.id}
+                                type="button"
+                                disabled={unavailable}
+                                onClick={() => {
+                                  const slotRange = formatSlotRange(slot);
+                                  setSelectedSlot(slot);
+                                  setFormData({ ...formData, time: slotRange });
+                                  setSlotPickerOpen(false);
+                                }}
+                                className={`min-h-10 rounded-lg border px-2 py-1.5 text-xs font-bold transition ${
+                                  selected
+                                    ? 'bg-teal-600 border-teal-600 text-white'
+                                    : unavailable
+                                      ? 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed'
+                                      : 'bg-white border-teal-100 text-teal-700 hover:bg-teal-50'
+                                }`}
+                              >
+                                <span className="block">{formatTimeArabic(slot.start_time)}</span>
+                                {unavailable && (
+                                  <span className="block text-[10px] font-medium">
+                                    {slot.status === 'booked' ? 'محجوز' : 'غير متاح'}
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 

@@ -53,7 +53,7 @@ const Home = () => {
 
       {/* 2. Booking Widget */}
       <div className="container mx-auto px-4 md:px-6 relative z-30 mt-0 md:-mt-32 mb-12 md:mb-0">
-        <div className="bg-white rounded-3xl shadow-xl p-1 md:p-2 border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-3xl shadow-xl p-1 md:p-2 border border-gray-100 overflow-visible">
           <AppointmentWidget />
         </div>
       </div>

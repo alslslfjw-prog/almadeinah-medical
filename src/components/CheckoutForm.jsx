@@ -71,12 +71,14 @@ export default function CheckoutForm({ bookingData = {}, prefill = {}, onSuccess
         const doctorId    = bookingData.doctor?.id ?? null;
         const scanId      = bookingData.type === 'scans' ? (bookingData.scanId ?? null) : null;
         const serviceName = bookingData.doctor?.name ?? bookingData.primarySelection ?? null;
+        const doctorTimeSlotId = bookingData.doctorTimeSlotId ?? bookingData.doctor_time_slot_id ?? null;
 
         const { success: ok, error } = await createAppointment({
             patient_name:     formData.name,
             phone_number:     cleanPhone,
             appointment_date: bookingData.date || null,
             appointment_time: bookingData.time || null,
+            doctor_time_slot_id: doctorTimeSlotId,
             doctor_id:        doctorId,
             scan_id:          scanId,
             status:           'pending',

@@ -29,6 +29,18 @@ function formatDate(iso) {
     return new Date(iso).toLocaleDateString('ar-SA', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
 }
 
+function formatAppointmentTime(value) {
+    if (!value) return '';
+    const text = String(value);
+    if (text.includes(' - ')) {
+        return text
+            .split(' - ')
+            .map(part => part.slice(0, 5))
+            .join(' - ');
+    }
+    return text.length > 5 && text.includes(':') ? text.slice(0, 5) : text;
+}
+
 function formatPrice(amount) {
     if (!amount) return null;
     return new Intl.NumberFormat('ar-YE').format(amount) + ' ر.ي';
@@ -82,7 +94,7 @@ function AppointmentCard({ appt, onCancel }) {
                     </span>
                     {appt.appointment_time && (
                         <span className="flex items-center gap-1">
-                            <Clock size={12} /> {appt.appointment_time?.slice(0,5)}
+                            <Clock size={12} /> {formatAppointmentTime(appt.appointment_time)}
                         </span>
                     )}
                 </div>

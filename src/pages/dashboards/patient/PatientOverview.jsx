@@ -27,6 +27,18 @@ function formatDate(iso) {
     });
 }
 
+function formatAppointmentTime(value) {
+    if (!value) return '';
+    const text = String(value);
+    if (text.includes(' - ')) {
+        return text
+            .split(' - ')
+            .map(part => part.slice(0, 5))
+            .join(' - ');
+    }
+    return text.length > 5 && text.includes(':') ? text.slice(0, 5) : text;
+}
+
 function StatCard({ icon: Icon, label, value, color }) {
     return (
         <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center gap-4">
@@ -184,7 +196,7 @@ export default function PatientOverview() {
                                     </p>
                                     <p className="text-xs text-slate-400 mt-0.5">
                                         {formatDate(nextAppt.appointment_date)}
-                                        {nextAppt.appointment_time && ` · ${nextAppt.appointment_time.slice(0, 5)}`}
+                                        {nextAppt.appointment_time && ` · ${formatAppointmentTime(nextAppt.appointment_time)}`}
                                     </p>
                                 </div>
                                 <span className={`self-start sm:self-auto text-xs font-bold px-3 py-1 rounded-full ${STATUS_MAP[nextAppt.status]?.cls ?? 'bg-slate-100 text-slate-500'}`}>

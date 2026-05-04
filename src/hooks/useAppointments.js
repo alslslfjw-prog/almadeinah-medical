@@ -15,6 +15,21 @@ import {
 } from '../api/appointments';
 import useUiStore from '../store/uiStore';
 
+function mapAppointmentError(err) {
+    const message = err?.message ?? String(err ?? '');
+    if (
+        message.includes('Selected time slot is already booked') ||
+        message.includes('appointments_active_doctor_time_slot_idx') ||
+        message.includes('duplicate key value')
+    ) {
+        return 'هذا الموعد حُجز للتو. يرجى اختيار وقت آخر.';
+    }
+    if (message.includes('Selected time slot is blocked')) {
+        return 'هذا الموعد غير متاح حالياً. يرجى اختيار وقت آخر.';
+    }
+    return message;
+}
+
 export function useAppointments() {
     const [appointments, setAppointments] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -47,8 +62,9 @@ export function useAppointments() {
         const { data, error: err } = await apiCreateAppointment(payload);
         setIsLoading(false);
         if (err) {
-            addToast({ type: 'error', message: `خطأ في الحجز: ${err.message}` });
-            return { success: false, error: err };
+            const friendlyMessage = mapAppointmentError(err);
+            addToast({ type: 'error', message: `خطأ في الحجز: ${friendlyMessage}` });
+            return { success: false, error: { ...err, message: friendlyMessage } };
         }
         addToast({ type: 'success', message: 'تم الحجز بنجاح!' });
         return { success: true, data };

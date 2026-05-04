@@ -13,12 +13,24 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     Plus, Pencil, Trash2, Star, StarOff, X, Save, Loader2,
-    Search, Upload, CheckSquare, Square, User2,
+    Search, Upload, CalendarDays, Clock, User2,
 } from 'lucide-react';
 import {
     getDoctors, createDoctor, updateDoctor, deleteDoctor, uploadDoctorImage,
 } from '../../../api/doctors';
+import {
+    createDoctorSchedules,
+    deleteDoctorSchedule,
+    getDoctorSchedules,
+    updateDoctorSchedule,
+} from '../../../api/doctorSchedules';
 import { getClinics } from '../../../api/clinics';
+import {
+    SATURDAY_FIRST_WEEK_DAYS,
+    getArabicDayName,
+    getDatesInRange,
+    toLocalDateKey,
+} from '../../../utils/doctorScheduleDates';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 // Seed list — used as fallback when the doctors table is empty
@@ -37,7 +49,9 @@ const AVAILABILITY_OPTIONS = [
     { value: 'on_leave', label: 'إجازة', color: 'bg-amber-100 text-amber-700' },
 ];
 
-const DAYS = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+const DEFAULT_RANGE_WEEKDAYS = SATURDAY_FIRST_WEEK_DAYS
+    .filter(day => day.jsDay !== 5)
+    .map(day => day.jsDay);
 
 const EMPTY_FORM = {
     name: '',
@@ -49,12 +63,29 @@ const EMPTY_FORM = {
     bio: '',
     qualifications: '',
     sub_specialties: [],      // jsonb array
-    schedule: {},             // jsonb object { day: 'HH:MM-HH:MM' }
-    work_hours: '',
-    shift: '',
     home_page_order: null,
     priority: 100,
     price: 0,
+};
+
+const DEFAULT_SHIFT = {
+    specific_date: toLocalDateKey(new Date()),
+    start_time: '08:00',
+    end_time: '16:00',
+    slot_duration_minutes: 10,
+    shift_label: '',
+    notes: '',
+};
+
+const DEFAULT_RANGE_SHIFT = {
+    start_date: toLocalDateKey(new Date()),
+    end_date: toLocalDateKey(new Date()),
+    start_time: '08:00',
+    end_time: '16:00',
+    slot_duration_minutes: 10,
+    shift_label: '',
+    notes: '',
+    weekdays: DEFAULT_RANGE_WEEKDAYS,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -65,7 +96,7 @@ const EMPTY_FORM = {
  */
 function to12hArabic(time24) {
     if (!time24) return '';
-    const [hStr, mStr] = time24.split(':');
+    const [hStr, mStr] = String(time24).slice(0, 5).split(':');
     const h = parseInt(hStr, 10);
     const m = parseInt(mStr, 10);
     const period = h < 12 ? 'ص' : 'م';
@@ -73,19 +104,80 @@ function to12hArabic(time24) {
     return `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${period}`;
 }
 
-/**
- * Parse a stored time-range string back into {start, end} for the time inputs.
- * Handles both raw "08:00-16:00" and formatted "08:00 ص - 04:00 م" gracefully.
- */
-function splitTimeRange(rangeStr) {
-    if (!rangeStr) return { start: '08:00', end: '16:00' };
-    // Raw format: "08:00-16:00"
-    const rawMatch = rangeStr.match(/(\d{2}:\d{2})-(\d{2}:\d{2})/);
-    if (rawMatch) return { start: rawMatch[1], end: rawMatch[2] };
-    // Already formatted — try to extract HH:MM portions
-    const parts = rangeStr.match(/(\d{2}:\d{2})/g);
-    if (parts?.length >= 2) return { start: parts[0], end: parts[1] };
-    return { start: '08:00', end: '16:00' };
+function formatShiftTime(schedule) {
+    return `${to12hArabic(schedule.start_time)} - ${to12hArabic(schedule.end_time)}`;
+}
+
+function timeToMinutes(time24) {
+    if (!time24) return null;
+    const [hStr, mStr] = String(time24).slice(0, 5).split(':');
+    const h = Number(hStr);
+    const m = Number(mStr);
+    if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
+    return h * 60 + m;
+}
+
+function getSlotSummary(shift) {
+    const start = timeToMinutes(shift.start_time);
+    const end = timeToMinutes(shift.end_time);
+    const duration = Number(shift.slot_duration_minutes);
+    if (start === null || end === null || end <= start || !Number.isInteger(duration) || duration < 5) {
+        return { count: 0, unusedMinutes: 0 };
+    }
+
+    const total = end - start;
+    const count = Math.floor(total / duration);
+    return {
+        count,
+        unusedMinutes: total - count * duration,
+    };
+}
+
+function isValidSlotDuration(value) {
+    const duration = Number(value);
+    return Number.isInteger(duration) && duration >= 5 && duration <= 120;
+}
+
+function addDays(date, days) {
+    const next = new Date(date);
+    next.setDate(next.getDate() + days);
+    return next;
+}
+
+function getScheduleWindow() {
+    const today = new Date();
+    return {
+        from: toLocalDateKey(today),
+        to: toLocalDateKey(addDays(today, 120)),
+    };
+}
+
+function mapScheduleError(error) {
+    if (!error) return '';
+    const message = error.message ?? String(error);
+    if (
+        message.includes("Could not find the table 'public.doctor_date_schedules'") ||
+        message.includes('doctor_date_schedules') && message.includes('schema cache')
+    ) {
+        return 'جدول مواعيد الأطباء الجديد غير موجود في Supabase بعد. شغّل ملف migration ثم أعد تحميل الصفحة.';
+    }
+    if (message.includes('doctor_date_schedules_time_order')) {
+        return 'وقت نهاية الدوام يجب أن يكون بعد وقت البداية';
+    }
+    if (message.includes('doctor_date_schedules_slot_duration_range') || message.includes('Slot duration must be between')) {
+        return 'مدة الموعد يجب أن تكون بين 5 و120 دقيقة';
+    }
+    if (message.includes('active slot bookings') || message.includes('active bookings')) {
+        return 'لا يمكن تعديل أو حذف هذه الوردية لأنها تحتوي على حجوزات نشطة';
+    }
+    if (message.includes('doctor_date_schedules_no_overlap') || message.includes('conflicting key value')) {
+        return 'يوجد تعارض مع دوام آخر للطبيب في نفس التاريخ';
+    }
+    return message;
+}
+
+function isValidShiftTime(start, end) {
+    return Boolean(start && end && end > start);
 }
 
 function AvailBadge({ status }) {
@@ -116,6 +208,14 @@ export default function DoctorsAdmin() {
     // Custom category mode ("أخرى..." selected)
     const [showCustom, setShowCustom] = useState(false);
 
+    // Date-based schedules
+    const [doctorSchedules, setDoctorSchedules] = useState([]);
+    const [schedulesLoading, setSchedulesLoading] = useState(false);
+    const [singleShift, setSingleShift] = useState(DEFAULT_SHIFT);
+    const [rangeShift, setRangeShift] = useState(DEFAULT_RANGE_SHIFT);
+    const [editingSchedule, setEditingSchedule] = useState(null);
+    const [scheduleActionLoading, setScheduleActionLoading] = useState(false);
+
     // Delete dialog
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleting, setDeleting] = useState(false);
@@ -137,6 +237,20 @@ export default function DoctorsAdmin() {
 
     useEffect(() => { fetchAll(); }, [fetchAll]);
 
+    const loadSchedulesForDoctor = useCallback(async (doctorId) => {
+        if (!doctorId) {
+            setDoctorSchedules([]);
+            return;
+        }
+
+        setSchedulesLoading(true);
+        const { from, to } = getScheduleWindow();
+        const { data, error } = await getDoctorSchedules(doctorId, from, to);
+        if (error) setSaveError(mapScheduleError(error));
+        setDoctorSchedules(data ?? []);
+        setSchedulesLoading(false);
+    }, []);
+
     // ── Panel helpers ──────────────────────────────────────────────────────────
     const openCreate = () => {
         setEditId(null);
@@ -146,6 +260,10 @@ export default function DoctorsAdmin() {
         setChipInput('');
         setSaveError('');
         setShowCustom(false);
+        setDoctorSchedules([]);
+        setSingleShift(DEFAULT_SHIFT);
+        setRangeShift(DEFAULT_RANGE_SHIFT);
+        setEditingSchedule(null);
         setPanelOpen(true);
     };
 
@@ -165,9 +283,6 @@ export default function DoctorsAdmin() {
             bio: doc.bio ?? '',
             qualifications: doc.qualifications ?? '',
             sub_specialties: Array.isArray(doc.sub_specialties) ? doc.sub_specialties : [],
-            schedule: doc.schedule && typeof doc.schedule === 'object' ? doc.schedule : {},
-            work_hours: doc.work_hours ?? '',
-            shift: doc.shift ?? '',
             home_page_order: doc.home_page_order ?? null,
             priority: doc.priority ?? 100,
             price: doc.price ?? 0,
@@ -176,7 +291,11 @@ export default function DoctorsAdmin() {
         setImagePreview(doc.image_url ?? '');
         setChipInput('');
         setSaveError('');
+        setSingleShift(DEFAULT_SHIFT);
+        setRangeShift(DEFAULT_RANGE_SHIFT);
+        setEditingSchedule(null);
         setPanelOpen(true);
+        loadSchedulesForDoctor(doc.id);
     };
 
     const closePanel = () => { setPanelOpen(false); setSaveError(''); setShowCustom(false); };
@@ -200,23 +319,159 @@ export default function DoctorsAdmin() {
     const removeChip = (chip) =>
         setField('sub_specialties', form.sub_specialties.filter(c => c !== chip));
 
-    // ── Schedule grid ─────────────────────────────────────────────────────────
-    const toggleDay = (day) => {
-        const sched = { ...form.schedule };
-        if (sched[day] !== undefined) {
-            delete sched[day];
-        } else {
-            // Default: 08:00 AM → 04:00 PM (formatted)
-            sched[day] = `${to12hArabic('08:00')} - ${to12hArabic('16:00')}`;
-        }
-        setField('schedule', sched);
+    // ── Date-based schedules ──────────────────────────────────────────────────
+    const resetScheduleInputs = () => {
+        setSingleShift(DEFAULT_SHIFT);
+        setRangeShift(DEFAULT_RANGE_SHIFT);
+        setEditingSchedule(null);
     };
-    // Accept start + end time strings, format and store
-    const setDayTime = (day, start, end) => {
-        setField('schedule', {
-            ...form.schedule,
-            [day]: `${to12hArabic(start)} - ${to12hArabic(end)}`,
-        });
+
+    const addPendingSchedules = (rows) => {
+        setDoctorSchedules(prev => [
+            ...prev,
+            ...rows.map((row, index) => ({
+                ...row,
+                id: `pending-${Date.now()}-${index}`,
+                _pending: true,
+            })),
+        ].sort((a, b) =>
+            `${a.specific_date} ${a.start_time}`.localeCompare(`${b.specific_date} ${b.start_time}`)
+        ));
+    };
+
+    const persistScheduleRows = async (rows) => {
+        if (!editId) {
+            addPendingSchedules(rows);
+            return true;
+        }
+
+        const payload = rows.map(row => ({ ...row, doctor_id: editId }));
+        const { error } = await createDoctorSchedules(payload);
+        if (error) {
+            setSaveError(mapScheduleError(error));
+            return false;
+        }
+        await loadSchedulesForDoctor(editId);
+        return true;
+    };
+
+    const handleAddSingleShift = async () => {
+        setSaveError('');
+        if (!singleShift.specific_date) { setSaveError('يرجى اختيار التاريخ'); return; }
+        if (!isValidShiftTime(singleShift.start_time, singleShift.end_time)) {
+            setSaveError('وقت نهاية الدوام يجب أن يكون بعد وقت البداية');
+            return;
+        }
+
+        if (!isValidSlotDuration(singleShift.slot_duration_minutes)) {
+            setSaveError('مدة الموعد يجب أن تكون بين 5 و120 دقيقة');
+            return;
+        }
+        if (getSlotSummary(singleShift).count < 1) {
+            setSaveError('مدة الوردية أقصر من مدة الموعد');
+            return;
+        }
+
+        setScheduleActionLoading(true);
+        const ok = await persistScheduleRows([singleShift]);
+        setScheduleActionLoading(false);
+        if (ok) setSingleShift(DEFAULT_SHIFT);
+    };
+
+    const handleAddRangeShift = async () => {
+        setSaveError('');
+        if (!rangeShift.start_date || !rangeShift.end_date) { setSaveError('يرجى اختيار بداية ونهاية النطاق'); return; }
+        if (rangeShift.start_date > rangeShift.end_date) { setSaveError('تاريخ نهاية النطاق يجب أن يكون بعد البداية'); return; }
+        if (!rangeShift.weekdays.length) { setSaveError('يرجى اختيار يوم واحد على الأقل'); return; }
+        if (!isValidShiftTime(rangeShift.start_time, rangeShift.end_time)) {
+            setSaveError('وقت نهاية الدوام يجب أن يكون بعد وقت البداية');
+            return;
+        }
+
+        if (!isValidSlotDuration(rangeShift.slot_duration_minutes)) {
+            setSaveError('مدة الموعد يجب أن تكون بين 5 و120 دقيقة');
+            return;
+        }
+        if (getSlotSummary(rangeShift).count < 1) {
+            setSaveError('مدة الوردية أقصر من مدة الموعد');
+            return;
+        }
+
+        const rows = getDatesInRange(rangeShift.start_date, rangeShift.end_date)
+            .filter(day => rangeShift.weekdays.includes(day.jsDay))
+            .map(day => ({
+                doctor_id: editId,
+                specific_date: day.dateKey,
+                start_time: rangeShift.start_time,
+                end_time: rangeShift.end_time,
+                slot_duration_minutes: rangeShift.slot_duration_minutes,
+                shift_label: rangeShift.shift_label,
+                notes: rangeShift.notes,
+            }));
+
+        if (!rows.length) { setSaveError('لا توجد تواريخ مطابقة للأيام المختارة داخل النطاق'); return; }
+
+        setScheduleActionLoading(true);
+        const ok = await persistScheduleRows(rows);
+        setScheduleActionLoading(false);
+        if (ok) setRangeShift(DEFAULT_RANGE_SHIFT);
+    };
+
+    const toggleRangeWeekday = (jsDay) => {
+        setRangeShift(prev => ({
+            ...prev,
+            weekdays: prev.weekdays.includes(jsDay)
+                ? prev.weekdays.filter(day => day !== jsDay)
+                : [...prev.weekdays, jsDay],
+        }));
+    };
+
+    const handleDeleteSchedule = async (schedule) => {
+        setSaveError('');
+        if (schedule._pending) {
+            setDoctorSchedules(prev => prev.filter(item => item.id !== schedule.id));
+            return;
+        }
+
+        setScheduleActionLoading(true);
+        const { error } = await deleteDoctorSchedule(schedule.id);
+        setScheduleActionLoading(false);
+        if (error) { setSaveError(mapScheduleError(error)); return; }
+        setDoctorSchedules(prev => prev.filter(item => item.id !== schedule.id));
+    };
+
+    const handleSaveScheduleEdit = async () => {
+        if (!editingSchedule) return;
+        setSaveError('');
+        if (!editingSchedule.specific_date) { setSaveError('يرجى اختيار التاريخ'); return; }
+        if (!isValidShiftTime(editingSchedule.start_time, editingSchedule.end_time)) {
+            setSaveError('وقت نهاية الدوام يجب أن يكون بعد وقت البداية');
+            return;
+        }
+
+        if (!isValidSlotDuration(editingSchedule.slot_duration_minutes ?? 10)) {
+            setSaveError('مدة الموعد يجب أن تكون بين 5 و120 دقيقة');
+            return;
+        }
+        if (getSlotSummary(editingSchedule).count < 1) {
+            setSaveError('مدة الوردية أقصر من مدة الموعد');
+            return;
+        }
+
+        if (editingSchedule._pending) {
+            setDoctorSchedules(prev => prev.map(item =>
+                item.id === editingSchedule.id ? editingSchedule : item
+            ));
+            setEditingSchedule(null);
+            return;
+        }
+
+        setScheduleActionLoading(true);
+        const { error } = await updateDoctorSchedule(editingSchedule.id, editingSchedule);
+        setScheduleActionLoading(false);
+        if (error) { setSaveError(mapScheduleError(error)); return; }
+        setEditingSchedule(null);
+        await loadSchedulesForDoctor(editId);
     };
 
     // ── Featured toggle ────────────────────────────────────────────────────────
@@ -272,9 +527,6 @@ export default function DoctorsAdmin() {
                 bio: form.bio.trim() || null,
                 qualifications: form.qualifications.trim() || null,
                 sub_specialties: form.sub_specialties.length ? form.sub_specialties : null,
-                schedule: Object.keys(form.schedule).length ? form.schedule : null,
-                work_hours: form.work_hours.trim() || null,
-                shift: form.shift.trim() || null,
                 home_page_order: form.home_page_order,
                 priority: Number(form.priority) || 100,
                 price: form.price !== '' ? Number(form.price) : 0,
@@ -284,11 +536,28 @@ export default function DoctorsAdmin() {
                 const { error } = await updateDoctor(editId, payload);
                 if (error) { setSaveError(error.message); return; }
             } else {
-                const { error } = await createDoctor(payload);
+                const { data: createdDoctor, error } = await createDoctor(payload);
                 if (error) { setSaveError(error.message); return; }
+                const pendingSchedules = doctorSchedules
+                    .filter(schedule => schedule._pending)
+                    .map(schedule => ({
+                        doctor_id: createdDoctor.id,
+                        specific_date: schedule.specific_date,
+                        start_time: schedule.start_time,
+                        end_time: schedule.end_time,
+                        slot_duration_minutes: schedule.slot_duration_minutes ?? 10,
+                        shift_label: schedule.shift_label,
+                        notes: schedule.notes,
+                    }));
+
+                if (pendingSchedules.length) {
+                    const { error: schedulesError } = await createDoctorSchedules(pendingSchedules);
+                    if (schedulesError) { setSaveError(mapScheduleError(schedulesError)); return; }
+                }
             }
 
             closePanel();
+            resetScheduleInputs();
             await fetchAll(); // simple re-fetch — no over-engineering
         } finally {
             setSaving(false);
@@ -607,28 +876,6 @@ export default function DoctorsAdmin() {
                                 />
                             </div>
 
-                            {/* Work hours + Shift */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 mb-1">ساعات العمل</label>
-                                    <input
-                                        value={form.work_hours}
-                                        onChange={e => setField('work_hours', e.target.value)}
-                                        className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-slate-50"
-                                        placeholder="8 ص - 4 م"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 mb-1">الوردية</label>
-                                    <input
-                                        value={form.shift}
-                                        onChange={e => setField('shift', e.target.value)}
-                                        className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-slate-50"
-                                        placeholder="صباحي / مسائي"
-                                    />
-                                </div>
-                            </div>
-
                             {/* Bio */}
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">السيرة الذاتية</label>
@@ -680,51 +927,261 @@ export default function DoctorsAdmin() {
                                 </div>
                             </div>
 
-                            {/* Schedule Builder */}
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-2">جدول العمل الأسبوعي</label>
-                                <div className="space-y-2 bg-slate-50 rounded-xl p-3 border border-slate-100">
-                                    {DAYS.map(day => {
-                                        const isOn = form.schedule[day] !== undefined;
-                                        // Parse stored string back to {start, end} for the native inputs
-                                        const { start, end } = isOn ? splitTimeRange(form.schedule[day]) : { start: '08:00', end: '16:00' };
-                                        return (
-                                            <div key={day} className="flex items-center gap-2">
-                                                {/* Day toggle */}
-                                                <button
-                                                    onClick={() => toggleDay(day)}
-                                                    className={`flex items-center gap-1.5 min-w-[90px] text-xs font-semibold transition ${isOn ? 'text-teal-700' : 'text-slate-400'}`}
-                                                >
-                                                    {isOn
-                                                        ? <CheckSquare size={16} className="text-teal-500" />
-                                                        : <Square size={16} className="text-slate-300" />
-                                                    }
-                                                    {day}
-                                                </button>
+                            {/* Date-based schedules */}
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between gap-3">
+                                    <label className="block text-xs font-bold text-slate-500">جدول الدوام بالتاريخ</label>
+                                    <span className="text-[11px] text-slate-400">الأسبوع يبدأ من السبت</span>
+                                </div>
 
-                                                {/* Dual time pickers */}
-                                                {isOn ? (
-                                                    <div className="flex items-center gap-1.5 flex-1">
-                                                        <input
-                                                            type="time"
-                                                            value={start}
-                                                            onChange={e => setDayTime(day, e.target.value, end)}
-                                                            className="flex-1 border border-slate-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white"
-                                                        />
-                                                        <span className="text-slate-400 text-xs font-bold flex-shrink-0">—</span>
-                                                        <input
-                                                            type="time"
-                                                            value={end}
-                                                            onChange={e => setDayTime(day, start, e.target.value)}
-                                                            className="flex-1 border border-slate-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white"
-                                                        />
+                                <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-3">
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <label className="block text-[11px] font-bold text-slate-500 mb-1">تاريخ محدد</label>
+                                            <input
+                                                type="date"
+                                                min={toLocalDateKey(new Date())}
+                                                value={singleShift.specific_date}
+                                                onChange={e => setSingleShift(s => ({ ...s, specific_date: e.target.value }))}
+                                                className="w-full border border-slate-200 rounded-lg px-2 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[11px] font-bold text-slate-500 mb-1">وصف اختياري</label>
+                                            <input
+                                                value={singleShift.shift_label}
+                                                onChange={e => setSingleShift(s => ({ ...s, shift_label: e.target.value }))}
+                                                className="w-full border border-slate-200 rounded-lg px-2 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white"
+                                                placeholder="صباحي / مسائي"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-[1fr_auto_1fr_auto] gap-2 items-end">
+                                        <div>
+                                            <label className="block text-[11px] font-bold text-slate-500 mb-1">من</label>
+                                            <input
+                                                type="time"
+                                                value={singleShift.start_time}
+                                                onChange={e => setSingleShift(s => ({ ...s, start_time: e.target.value }))}
+                                                className="w-full border border-slate-200 rounded-lg px-2 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white"
+                                            />
+                                        </div>
+                                        <span className="text-slate-400 text-xs pb-2">—</span>
+                                        <div>
+                                            <label className="block text-[11px] font-bold text-slate-500 mb-1">إلى</label>
+                                            <input
+                                                type="time"
+                                                value={singleShift.end_time}
+                                                onChange={e => setSingleShift(s => ({ ...s, end_time: e.target.value }))}
+                                                className="w-full border border-slate-200 rounded-lg px-2 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white"
+                                            />
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={handleAddSingleShift}
+                                            disabled={scheduleActionLoading}
+                                            className="bg-teal-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-teal-700 disabled:opacity-60 transition"
+                                        >
+                                            إضافة
+                                        </button>
+                                    </div>
+                                    <div className="grid grid-cols-[120px_1fr] gap-2 items-end">
+                                        <div>
+                                            <label className="block text-[11px] font-bold text-slate-500 mb-1">مدة الموعد</label>
+                                            <input
+                                                type="number"
+                                                min="5"
+                                                max="120"
+                                                step="5"
+                                                value={singleShift.slot_duration_minutes}
+                                                onChange={e => setSingleShift(s => ({ ...s, slot_duration_minutes: Number(e.target.value) }))}
+                                                className="w-full border border-slate-200 rounded-lg px-2 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white"
+                                            />
+                                        </div>
+                                        <div className="text-[11px] text-slate-500 bg-white border border-slate-100 rounded-lg px-3 py-2">
+                                            سيتم إنشاء {getSlotSummary(singleShift).count} موعد
+                                            {getSlotSummary(singleShift).unusedMinutes > 0 ? `، ويتبقى ${getSlotSummary(singleShift).unusedMinutes} دقيقة غير مستخدمة` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-white rounded-xl p-3 border border-slate-100 space-y-3">
+                                    <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                                        <CalendarDays size={14} className="text-teal-500" />
+                                        إضافة نطاق تواريخ
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <input
+                                            type="date"
+                                            min={toLocalDateKey(new Date())}
+                                            value={rangeShift.start_date}
+                                            onChange={e => setRangeShift(s => ({ ...s, start_date: e.target.value }))}
+                                            className="w-full border border-slate-200 rounded-lg px-2 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-400 bg-slate-50"
+                                        />
+                                        <input
+                                            type="date"
+                                            min={rangeShift.start_date}
+                                            value={rangeShift.end_date}
+                                            onChange={e => setRangeShift(s => ({ ...s, end_date: e.target.value }))}
+                                            className="w-full border border-slate-200 rounded-lg px-2 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-400 bg-slate-50"
+                                        />
+                                    </div>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {SATURDAY_FIRST_WEEK_DAYS.map(day => {
+                                            const selected = rangeShift.weekdays.includes(day.jsDay);
+                                            return (
+                                                <button
+                                                    key={day.jsDay}
+                                                    type="button"
+                                                    onClick={() => toggleRangeWeekday(day.jsDay)}
+                                                    className={`px-2 py-1 rounded-lg border text-[11px] font-bold transition ${
+                                                        selected
+                                                            ? 'bg-teal-50 border-teal-200 text-teal-700'
+                                                            : 'bg-slate-50 border-slate-100 text-slate-400'
+                                                    }`}
+                                                >
+                                                    {day.name}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <input
+                                            type="time"
+                                            value={rangeShift.start_time}
+                                            onChange={e => setRangeShift(s => ({ ...s, start_time: e.target.value }))}
+                                            className="w-full border border-slate-200 rounded-lg px-2 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-400 bg-slate-50"
+                                        />
+                                        <input
+                                            type="time"
+                                            value={rangeShift.end_time}
+                                            onChange={e => setRangeShift(s => ({ ...s, end_time: e.target.value }))}
+                                            className="w-full border border-slate-200 rounded-lg px-2 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-400 bg-slate-50"
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-[120px_1fr] gap-2 items-end">
+                                        <div>
+                                            <label className="block text-[11px] font-bold text-slate-500 mb-1">مدة الموعد</label>
+                                            <input
+                                                type="number"
+                                                min="5"
+                                                max="120"
+                                                step="5"
+                                                value={rangeShift.slot_duration_minutes}
+                                                onChange={e => setRangeShift(s => ({ ...s, slot_duration_minutes: Number(e.target.value) }))}
+                                                className="w-full border border-slate-200 rounded-lg px-2 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-400 bg-slate-50"
+                                            />
+                                        </div>
+                                        <div className="text-[11px] text-slate-500 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2">
+                                            سيتم إنشاء {getSlotSummary(rangeShift).count} موعد لكل يوم
+                                            {getSlotSummary(rangeShift).unusedMinutes > 0 ? `، ويتبقى ${getSlotSummary(rangeShift).unusedMinutes} دقيقة غير مستخدمة` : ''}
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-[1fr_auto] gap-2">
+                                        <input
+                                            value={rangeShift.shift_label}
+                                            onChange={e => setRangeShift(s => ({ ...s, shift_label: e.target.value }))}
+                                            className="w-full border border-slate-200 rounded-lg px-2 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-400 bg-slate-50"
+                                            placeholder="وصف اختياري للنطاق"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={handleAddRangeShift}
+                                            disabled={scheduleActionLoading}
+                                            className="bg-blue-900 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-blue-800 disabled:opacity-60 transition"
+                                        >
+                                            إنشاء
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                                        <Clock size={14} className="text-teal-500" />
+                                        الورديات القادمة
+                                    </div>
+                                    {schedulesLoading ? (
+                                        <div className="text-xs text-slate-400 bg-slate-50 rounded-xl px-3 py-3">جاري تحميل الورديات...</div>
+                                    ) : doctorSchedules.length === 0 ? (
+                                        <div className="text-xs text-slate-400 bg-slate-50 rounded-xl px-3 py-3">لا توجد ورديات قادمة بعد</div>
+                                    ) : (
+                                        <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                                            {doctorSchedules.map(schedule => {
+                                                const isEditing = editingSchedule?.id === schedule.id;
+                                                const slotSummary = getSlotSummary(schedule);
+                                                return (
+                                                    <div key={schedule.id} className="bg-slate-50 border border-slate-100 rounded-xl p-3 space-y-2">
+                                                        {isEditing ? (
+                                                            <>
+                                                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                                                    <input
+                                                                        type="date"
+                                                                        value={editingSchedule.specific_date}
+                                                                        onChange={e => setEditingSchedule(s => ({ ...s, specific_date: e.target.value }))}
+                                                                        className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white"
+                                                                    />
+                                                                    <input
+                                                                        type="time"
+                                                                        value={editingSchedule.start_time?.slice(0, 5)}
+                                                                        onChange={e => setEditingSchedule(s => ({ ...s, start_time: e.target.value }))}
+                                                                        className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white"
+                                                                    />
+                                                                    <input
+                                                                        type="time"
+                                                                        value={editingSchedule.end_time?.slice(0, 5)}
+                                                                        onChange={e => setEditingSchedule(s => ({ ...s, end_time: e.target.value }))}
+                                                                        className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white"
+                                                                    />
+                                                                    <input
+                                                                        type="number"
+                                                                        min="5"
+                                                                        max="120"
+                                                                        step="5"
+                                                                        value={editingSchedule.slot_duration_minutes ?? 10}
+                                                                        onChange={e => setEditingSchedule(s => ({ ...s, slot_duration_minutes: Number(e.target.value) }))}
+                                                                        className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white"
+                                                                        title="مدة الموعد بالدقائق"
+                                                                    />
+                                                                </div>
+                                                                <input
+                                                                    value={editingSchedule.shift_label ?? ''}
+                                                                    onChange={e => setEditingSchedule(s => ({ ...s, shift_label: e.target.value }))}
+                                                                    className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white"
+                                                                    placeholder="وصف اختياري"
+                                                                />
+                                                                <div className="text-[11px] text-slate-500 bg-white border border-slate-100 rounded-lg px-2 py-1.5">
+                                                                    سيتم إنشاء {getSlotSummary(editingSchedule).count} موعد
+                                                                    {getSlotSummary(editingSchedule).unusedMinutes > 0 ? `، ويتبقى ${getSlotSummary(editingSchedule).unusedMinutes} دقيقة غير مستخدمة` : ''}
+                                                                </div>
+                                                                <div className="flex gap-2">
+                                                                    <button type="button" onClick={handleSaveScheduleEdit} className="flex-1 bg-teal-600 text-white rounded-lg py-1.5 text-xs font-bold">حفظ الوردية</button>
+                                                                    <button type="button" onClick={() => setEditingSchedule(null)} className="px-3 border border-slate-200 rounded-lg py-1.5 text-xs font-bold text-slate-500">إلغاء</button>
+                                                                </div>
+                                                            </>
+                                                        ) : (
+                                                            <div className="flex items-center justify-between gap-3">
+                                                                <div className="min-w-0">
+                                                                    <div className="font-bold text-slate-700 text-xs">
+                                                                        {getArabicDayName(schedule.specific_date)}، {schedule.specific_date}
+                                                                        {schedule._pending ? <span className="text-amber-600 mr-1">(سيحفظ مع الطبيب)</span> : null}
+                                                                    </div>
+                                                                    <div className="text-teal-700 text-xs font-bold mt-1">{formatShiftTime(schedule)}</div>
+                                                                    <div className="text-slate-400 text-[11px] mt-1">
+                                                                        {schedule.slot_duration_minutes ?? 10} دقيقة · {slotSummary.count} مواعيد
+                                                                    </div>
+                                                                    {schedule.shift_label ? <div className="text-slate-400 text-[11px] mt-1">{schedule.shift_label}</div> : null}
+                                                                </div>
+                                                                <div className="flex gap-1 flex-shrink-0">
+                                                                    <button type="button" onClick={() => setEditingSchedule(schedule)} className="px-2 py-1 text-[11px] font-bold rounded-lg border border-slate-200 text-slate-500 hover:bg-white">تعديل</button>
+                                                                    <button type="button" onClick={() => handleDeleteSchedule(schedule)} className="px-2 py-1 text-[11px] font-bold rounded-lg border border-red-100 text-red-500 hover:bg-red-50">حذف</button>
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                ) : (
-                                                    <span className="text-xs text-slate-300">إجازة</span>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
+                                                );
+                                            })}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
