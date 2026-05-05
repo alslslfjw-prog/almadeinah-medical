@@ -188,10 +188,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* 6. Partners & Insurance Marquee */}
-      <PartnersMarquee />
-
-      {/* 7. Why Choose Us */}
+      {/* 6. Why Choose Us */}
 
       <section className="py-16 md:py-24 bg-white text-center">
         <div className="container mx-auto px-6">
@@ -229,7 +226,10 @@ const Home = () => {
         </div>
       </section>
 
-      {/* 7. CTA */}
+      {/* 7. Partners & Insurance Marquee */}
+      <PartnersMarquee />
+
+      {/* 8. CTA */}
       <section className="py-16 md:py-20 bg-gradient-to-r from-teal-500 to-blue-600 text-white text-center relative overflow-hidden">
         <div className="container mx-auto px-6 relative z-10">
           <h2 className="text-2xl md:text-5xl font-black mb-6">ابدأ رحلتك الصحية الآن</h2>
