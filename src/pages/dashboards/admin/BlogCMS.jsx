@@ -14,10 +14,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     Plus, Pencil, Trash2, Star, StarOff, X, Save, Loader2,
-    Search, ImagePlus, ChevronDown, BookOpen, Tag, Clock, User
+    Search, Upload, Image as ImageIcon, ChevronDown, BookOpen, Tag, Clock, User
 } from 'lucide-react';
 import {
-    getBlogs, getBlogById, createBlog, updateBlog, deleteBlog, toggleBlogFeatured
+    getBlogs, getBlogById, createBlog, updateBlog, deleteBlog, toggleBlogFeatured, uploadBlogImage
 } from '../../../api/blogs';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -54,6 +54,8 @@ export default function BlogCMS() {
     const [panelOpen, setPanelOpen] = useState(false);
     const [editId, setEditId] = useState(null);   // null = create mode
     const [form, setForm] = useState(EMPTY_FORM);
+    const [imgFile, setImgFile] = useState(null);
+    const [imgPrev, setImgPrev] = useState('');
     const [saving, setSaving] = useState(false);
     const [saveError, setSaveError] = useState('');
     const [loadingEdit, setLoadingEdit] = useState(null); // post.id being loaded for edit
@@ -79,6 +81,8 @@ export default function BlogCMS() {
     const openCreate = () => {
         setEditId(null);
         setForm(EMPTY_FORM);
+        setImgFile(null);
+        setImgPrev('');
         setSaveError('');
         setPanelOpen(true);
     };
@@ -102,6 +106,8 @@ export default function BlogCMS() {
             author: full.author ?? '',
             icon_name: full.icon_name ?? 'Activity',
         });
+        setImgFile(null);
+        setImgPrev(full.image_url ?? '');
         setSaveError('');
         setPanelOpen(true);
     };
@@ -109,6 +115,12 @@ export default function BlogCMS() {
     const closePanel = () => { setPanelOpen(false); setSaveError(''); };
 
     const handleField = (field, value) => setForm(f => ({ ...f, [field]: value }));
+    const onImgChange = e => {
+        const f = e.target.files?.[0];
+        if (!f) return;
+        setImgFile(f);
+        setImgPrev(URL.createObjectURL(f));
+    };
 
     // ── Save ────────────────────────────────────────────────────────────────────
     const handleSave = async () => {
@@ -118,9 +130,20 @@ export default function BlogCMS() {
         if (!form.content.trim()) { setSaveError('المحتوى مطلوب'); return; }
 
         setSaving(true);
+        let imageUrl = form.image_url;
+        if (imgFile) {
+            const { url, error: uploadError } = await uploadBlogImage(imgFile);
+            if (uploadError) {
+                setSaving(false);
+                setSaveError('فشل رفع الصورة: ' + uploadError.message);
+                return;
+            }
+            imageUrl = url;
+        }
+        const payload = { ...form, image_url: imageUrl || null };
         const { error } = editId
-            ? await updateBlog(editId, form)
-            : await createBlog(form);
+            ? await updateBlog(editId, payload)
+            : await createBlog(payload);
         setSaving(false);
 
         if (error) { setSaveError(error.message ?? 'حدث خطأ'); return; }
@@ -436,27 +459,22 @@ export default function BlogCMS() {
                                 </div>
                             </div>
 
-                            {/* Image URL */}
+                            {/* Cover Image */}
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-1.5">
-                                    <ImagePlus size={13} className="inline mb-0.5 ml-1 text-teal-500" />
-                                    رابط صورة الغلاف
+                                    <ImageIcon size={13} className="inline mb-0.5 ml-1 text-teal-500" />
+                                    صورة الغلاف
                                 </label>
-                                <input
-                                    value={form.image_url}
-                                    onChange={e => handleField('image_url', e.target.value)}
-                                    placeholder="https://..."
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-400 focus:bg-white transition"
-                                    dir="ltr"
-                                />
-                                {form.image_url && (
-                                    <img
-                                        src={form.image_url}
-                                        alt="preview"
-                                        className="mt-2 h-28 w-full object-cover rounded-xl border border-slate-200"
-                                        onError={e => { e.currentTarget.style.display = 'none'; }}
-                                    />
-                                )}
+                                <div className="flex items-center gap-4">
+                                    {imgPrev
+                                        ? <img src={imgPrev} alt="preview" className="w-20 h-20 rounded-xl object-cover border border-slate-200" />
+                                        : <div className="w-20 h-20 rounded-xl bg-slate-100 flex items-center justify-center"><ImageIcon size={28} className="text-slate-300" /></div>
+                                    }
+                                    <label className="cursor-pointer flex items-center gap-2 bg-slate-50 hover:bg-teal-50 border border-slate-200 hover:border-teal-400 text-slate-600 hover:text-teal-700 px-4 py-2 rounded-lg text-xs font-bold transition">
+                                        <Upload size={14} /> رفع صورة
+                                        <input type="file" accept="image/*" className="hidden" onChange={onImgChange} />
+                                    </label>
+                                </div>
                             </div>
 
 

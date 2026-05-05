@@ -4,10 +4,11 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Pencil, Trash2, X, Save, Loader2, Search, Tag, CalendarDays, Clock } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Save, Loader2, Search, Tag, CalendarDays, Clock, Upload, Image as ImageIcon } from 'lucide-react';
 import {
     getScans, createScan, updateScan, deleteScan,
     getScanCategories, createScanCategory, updateScanCategory, deleteScanCategory,
+    uploadScanCategoryImage,
 } from '../../../api/scans';
 import {
     createScanSchedules,
@@ -210,6 +211,8 @@ export default function ScansAdmin() {
     const [catPanel,   setCatPanel]   = useState(false);
     const [catEditId,  setCatEditId]  = useState(null);
     const [catForm,    setCatForm]    = useState(EMPTY_CAT);
+    const [catImgFile, setCatImgFile] = useState(null);
+    const [catImgPrev, setCatImgPrev] = useState('');
     const [catSaving,  setCatSaving]  = useState(false);
     const [catErr,     setCatErr]     = useState('');
     const [catDel,     setCatDel]     = useState(null);
@@ -441,23 +444,44 @@ export default function ScansAdmin() {
     };
 
     // ── Category helpers ─────────────────────────────────────────────────────
-    const openCatCreate = () => { setCatEditId(null); setCatForm(EMPTY_CAT); setCatErr(''); setCatPanel(true); };
+    const openCatCreate = () => {
+        setCatEditId(null);
+        setCatForm(EMPTY_CAT);
+        setCatImgFile(null);
+        setCatImgPrev('');
+        setCatErr('');
+        setCatPanel(true);
+    };
     const openCatEdit = (c) => {
         setCatEditId(c.id);
         setCatForm({ name: c.name ?? '', icon_class: c.icon_class ?? '', image_url: c.image_url ?? '', display_order: c.display_order ?? 0 });
+        setCatImgFile(null);
+        setCatImgPrev(c.image_url ?? '');
         setCatErr(''); setCatPanel(true);
     };
     const setCatField = (k, v) => setCatForm(p => ({ ...p, [k]: v }));
+    const onCatImgChange = e => {
+        const f = e.target.files?.[0];
+        if (!f) return;
+        setCatImgFile(f);
+        setCatImgPrev(URL.createObjectURL(f));
+    };
 
     const handleCatSave = async () => {
         setCatErr('');
         if (!catForm.name.trim()) { setCatErr('اسم الفئة مطلوب'); return; }
         setCatSaving(true);
         try {
+            let imageUrl = catForm.image_url;
+            if (catImgFile) {
+                const { url, error: uploadError } = await uploadScanCategoryImage(catImgFile);
+                if (uploadError) { setCatErr('فشل رفع الصورة: ' + uploadError.message); return; }
+                imageUrl = url;
+            }
             const payload = {
                 name:          catForm.name.trim(),
                 icon_class:    catForm.icon_class.trim()  || null,
-                image_url:     catForm.image_url.trim()   || null,
+                image_url:     imageUrl || null,
                 display_order: Number(catForm.display_order) || 0,
             };
             const { error } = catEditId ? await updateScanCategory(catEditId, payload) : await createScanCategory(payload);
@@ -959,10 +983,17 @@ export default function ScansAdmin() {
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">رابط صورة الغلاف</label>
-                                <input value={catForm.image_url} onChange={e => setCatField('image_url', e.target.value)}
-                                    className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-slate-50 font-mono text-xs" placeholder="https://..." dir="ltr" />
-                                {catForm.image_url && <img src={catForm.image_url} alt="preview" className="mt-2 h-20 w-full object-cover rounded-lg border border-slate-200" />}
+                                <label className="block text-xs font-bold text-slate-500 mb-2">صورة الغلاف</label>
+                                <div className="flex items-center gap-4">
+                                    {catImgPrev
+                                        ? <img src={catImgPrev} alt="preview" className="w-20 h-20 rounded-xl object-cover border border-slate-200" />
+                                        : <div className="w-20 h-20 rounded-xl bg-slate-100 flex items-center justify-center"><ImageIcon size={28} className="text-slate-300" /></div>
+                                    }
+                                    <label className="cursor-pointer flex items-center gap-2 bg-slate-50 hover:bg-teal-50 border border-slate-200 hover:border-teal-400 text-slate-600 hover:text-teal-700 px-4 py-2 rounded-lg text-xs font-bold transition">
+                                        <Upload size={14} /> رفع صورة
+                                        <input type="file" accept="image/*" className="hidden" onChange={onCatImgChange} />
+                                    </label>
+                                </div>
                             </div>
 
                             <div>

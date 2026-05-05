@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AppointmentWidget from '../components/AppointmentWidget';
+import PartnersMarquee from '../components/PartnersMarquee';
 import { useFeaturedDoctors } from '../hooks/useDoctors';
 import {
   Building2, User, Activity, FlaskConical,
@@ -187,7 +188,11 @@ const Home = () => {
         </div>
       </section>
 
-      {/* 6. Why Choose Us */}
+      {/* 6. Partners & Insurance Marquee */}
+      <PartnersMarquee />
+
+      {/* 7. Why Choose Us */}
+
       <section className="py-16 md:py-24 bg-white text-center">
         <div className="container mx-auto px-6">
           <h2 className="text-2xl md:text-3xl font-bold text-blue-900 mb-12">لماذا تختار مركزنا؟</h2>

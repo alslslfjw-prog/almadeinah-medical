@@ -105,3 +105,16 @@ export async function deleteBlog(id) {
         .eq('id', id);
     return { error };
 }
+
+export async function uploadBlogImage(file) {
+    try {
+        const ext = file.name.split('.').pop();
+        const filename = `blog-${Date.now()}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+            .from('blog-images')
+            .upload(filename, file, { upsert: true, contentType: file.type });
+        if (uploadError) return { url: null, error: uploadError };
+        const { data } = supabase.storage.from('blog-images').getPublicUrl(filename);
+        return { url: data.publicUrl, error: null };
+    } catch (err) { return { url: null, error: err }; }
+}

@@ -273,6 +273,19 @@ export async function uploadScanImage(file) {
 
 // ─── ADMIN: PACKAGES WRITE ────────────────────────────────────────────────────
 
+export async function uploadScanCategoryImage(file) {
+    try {
+        const ext = file.name.split('.').pop();
+        const filename = `scan-category-${Date.now()}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+            .from('scan-images')
+            .upload(filename, file, { upsert: true, contentType: file.type });
+        if (uploadError) return { url: null, error: uploadError };
+        const { data } = supabase.storage.from('scan-images').getPublicUrl(filename);
+        return { url: data.publicUrl, error: null };
+    } catch (err) { return { url: null, error: err }; }
+}
+
 export async function createPackage(payload) {
     try {
         const { data, error } = await supabase.from('medical_packages').insert([payload]).select().single();
