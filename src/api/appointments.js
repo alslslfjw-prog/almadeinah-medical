@@ -22,7 +22,7 @@ import { supabase } from '../lib/supabaseClient';
 export async function getAllAppointments({ status, from, to } = {}) {
     let query = supabase
         .from('appointments')
-        .select('*, doctors(id, name, title, category, clinics(name)), scans(id, name), doctor_time_slots(id, slot_date, start_time, end_time, status), scan_time_slots(id, slot_date, start_time, end_time, status)')
+        .select('*, doctors(id, name, title, category, clinics(name)), scans(id, name), doctor_time_slots(id, slot_date, start_time, end_time, status), scan_time_slots(id, slot_date, start_time, end_time, status), payment_transactions!appointments_payment_transaction_id_fkey(id, status, provider_id, bank_transaction_id, customer_account_masked, paid_at, last_error_message)')
         .order('created_at', { ascending: false });
 
     if (status) query = query.eq('status', status);
@@ -41,7 +41,7 @@ export async function getAllAppointments({ status, from, to } = {}) {
 export async function getMyAppointments() {
     const { data, error } = await supabase
         .from('appointments')
-        .select('*, doctors(id, name, title, image_url, clinics(name)), scans(id, name), doctor_time_slots(id, slot_date, start_time, end_time, status), scan_time_slots(id, slot_date, start_time, end_time, status)')
+        .select('*, doctors(id, name, title, image_url, clinics(name)), scans(id, name), doctor_time_slots(id, slot_date, start_time, end_time, status), scan_time_slots(id, slot_date, start_time, end_time, status), payment_transactions!appointments_payment_transaction_id_fkey(id, status, provider_id, bank_transaction_id, paid_at)')
         .order('appointment_date', { ascending: false });
     return { data, error };
 }
@@ -83,6 +83,11 @@ export async function createAppointment(payload) {
                 service_name: payload.service_name ?? null,
                 type: payload.type ?? null,
                 total_price_yer: payload.total_price_yer ?? null,
+                payment_status: payload.payment_status ?? null,
+                payment_method_provider_id: payload.payment_method_provider_id ?? null,
+                payment_transaction_id: payload.payment_transaction_id ?? null,
+                payment_paid_at: payload.payment_paid_at ?? null,
+                payment_expires_at: payload.payment_expires_at ?? null,
             },
         ])
         .select()

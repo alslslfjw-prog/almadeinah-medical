@@ -50,10 +50,79 @@ export async function getMyAppointments() {
 
     const { data, error } = await supabase
         .from('appointments')
-        .select('*, doctors(id, name, title, image_url, clinics(name)), scans(id, name), doctor_time_slots(id, slot_date, start_time, end_time, status), scan_time_slots(id, slot_date, start_time, end_time, status)')
+        .select('*, doctors(id, name, title, image_url, clinics(name)), scans(id, name), doctor_time_slots(id, slot_date, start_time, end_time, status), scan_time_slots(id, slot_date, start_time, end_time, status), payment_transactions!appointments_payment_transaction_id_fkey(id, status, provider_id, bank_transaction_id, paid_at)')
         .eq('patient_user_id', user.id)
         .order('appointment_date', { ascending: false });
     return { data: data ?? [], error };
+}
+
+/**
+ * Fetch the current patient's payment ledger rows.
+ */
+export async function getMyPayments() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { data: [], error: { message: 'Not authenticated' } };
+
+    const { data, error } = await supabase
+        .from('payment_transaction_ledger')
+        .select('*')
+        .eq('patient_user_id', user.id)
+        .order('created_at', { ascending: false });
+    return { data: data ?? [], error };
+}
+
+/**
+ * Fetch one payment's receipt, line items, refunds, and audit timeline.
+ */
+export async function getMyPaymentDetails(transactionId) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { data: null, error: { message: 'Not authenticated' } };
+
+    const [transaction, events, lineItems, refunds, receipt] = await Promise.all([
+        supabase
+            .from('payment_transaction_ledger')
+            .select('*')
+            .eq('id', transactionId)
+            .eq('patient_user_id', user.id)
+            .maybeSingle(),
+        supabase
+            .from('payment_events')
+            .select('*')
+            .eq('transaction_id', transactionId)
+            .eq('patient_user_id', user.id)
+            .order('created_at', { ascending: true }),
+        supabase
+            .from('payment_line_items')
+            .select('*')
+            .eq('transaction_id', transactionId)
+            .eq('patient_user_id', user.id),
+        supabase
+            .from('payment_refunds')
+            .select('*')
+            .eq('transaction_id', transactionId)
+            .eq('patient_user_id', user.id)
+            .order('created_at', { ascending: false }),
+        supabase
+            .from('payment_receipts')
+            .select('*')
+            .eq('transaction_id', transactionId)
+            .eq('patient_user_id', user.id)
+            .maybeSingle(),
+    ]);
+
+    const error = transaction.error || events.error || lineItems.error || refunds.error || receipt.error;
+    if (error) return { data: null, error };
+
+    return {
+        data: {
+            transaction: transaction.data,
+            events: events.data ?? [],
+            lineItems: lineItems.data ?? [],
+            refunds: refunds.data ?? [],
+            receipt: receipt.data,
+        },
+        error: null,
+    };
 }
 
 /**

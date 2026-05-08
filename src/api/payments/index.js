@@ -10,35 +10,46 @@
 
 import { supabase } from '../../lib/supabaseClient';
 
-/**
- * Initiate a payment by calling the `process-payment` Edge Function.
- * The Edge Function holds the gateway secret key (set via `supabase secrets set`).
- *
- * @param {{
- *   appointmentId: number,
- *   amount: number,           // in smallest currency unit (e.g., halalas)
- *   currency: string,         // e.g. 'SAR', 'YER'
- *   method: string,           // e.g. 'card', 'stc_pay'
- *   customerName: string,
- *   customerPhone: string,
- * }} payload
- * @returns {Promise<{ data: object|null, error: object|null }>}
- */
-export async function initiatePayment(payload) {
-    const { data, error } = await supabase.functions.invoke('process-payment', {
-        body: payload,
+async function invokeAlqutabiPayment(body) {
+    const { data, error } = await supabase.functions.invoke('alqutabi-payment', {
+        body,
     });
-    return { data, error };
+
+    if (error) {
+        let serverError = null;
+        try {
+            serverError = await error.context?.json?.();
+        } catch {
+            serverError = null;
+        }
+        return { data: null, error: serverError?.error ?? error };
+    }
+    if (data?.success === false) {
+        return {
+            data: null,
+            error: data.error ?? { message: 'Payment request failed' },
+        };
+    }
+    return { data: data?.data ?? data, error: null };
 }
 
-/**
- * Verify a payment status by transaction ID (calls Edge Function).
- * @param {string} transactionId
- * @returns {Promise<{ data: object|null, error: object|null }>}
- */
-export async function verifyPayment(transactionId) {
-    const { data, error } = await supabase.functions.invoke('verify-payment', {
-        body: { transactionId },
+export async function initiateAlqutabiPayment(payload) {
+    return invokeAlqutabiPayment({
+        action: 'initiate',
+        ...payload,
     });
-    return { data, error };
+}
+
+export async function confirmAlqutabiPayment(payload) {
+    return invokeAlqutabiPayment({
+        action: 'confirm',
+        ...payload,
+    });
+}
+
+export async function resendAlqutabiOtp(payload) {
+    return invokeAlqutabiPayment({
+        action: 'resend_otp',
+        ...payload,
+    });
 }

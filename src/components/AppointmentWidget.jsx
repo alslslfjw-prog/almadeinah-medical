@@ -35,6 +35,7 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
   const [selectedPrimary, setSelectedPrimary] = useState('');
   const [labSelectionType, setLabSelectionType] = useState(null);
   const [selectedLabItems, setSelectedLabItems] = useState([]);
+  const [selectedLabTestDetails, setSelectedLabTestDetails] = useState([]);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [doctorTimeSlots, setDoctorTimeSlots] = useState([]);
   const [doctorSchedulesLoading, setDoctorSchedulesLoading] = useState(false);
@@ -103,6 +104,7 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
       }
       setSecondaryOptions([]);
       setSelectedLabItems([]);
+      setSelectedLabTestDetails([]);
       setLabSelectionType(null);
       setError('');
 
@@ -157,6 +159,7 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
     setSelectedLabCategory(null);
     setTestsForLabCategory([]);
     setSelectedLabItems([]);
+    setSelectedLabTestDetails([]);
     setLabSelectionType(null);
     setLoading(true);
     getLabCategories()
@@ -284,12 +287,17 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
     }
   }, [selectedPrimary, activeTab, scansForCategory]);
 
-  const handleAddSingleTest = (testName) => {
-    if (!testName) return;
+  const handleAddSingleTest = (testId) => {
+    if (!testId) return;
+    const test = testsForLabCategory.find(t => String(t.id) === String(testId));
+    if (!test?.name) return;
     setLabSelectionType('single');
-    if (!selectedLabItems.includes(testName)) {
-      setSelectedLabItems(prev => [...prev, testName]);
-      // Price is now derived from the full selectedLabItems array — no scalar tracking needed
+    if (!selectedLabTestDetails.some(item => String(item.id) === String(test.id))) {
+      setSelectedLabItems(prev => [...prev, test.name]);
+      setSelectedLabTestDetails(prev => [
+        ...prev,
+        { id: test.id, name: test.name, price: Number(test.price) || 0 },
+      ]);
     }
   };
 
@@ -298,6 +306,7 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
     if (!packageName) return;
     setLabSelectionType('package');
     setSelectedLabItems([packageName]);
+    setSelectedLabTestDetails([]);
     // Mutual exclusivity: clear lab cascade state
     setSelectedLabCategory(null);
     setTestsForLabCategory([]);
@@ -306,6 +315,7 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
   const removeLabItem = (item) => {
     const updated = selectedLabItems.filter(i => i !== item);
     setSelectedLabItems(updated);
+    setSelectedLabTestDetails(prev => prev.filter(test => test.name !== item));
     if (updated.length === 0) { setLabSelectionType(null); setSelectedItemPriceUSD(0); }
   };
 
@@ -368,26 +378,28 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
     );
   };
 
+  const selectedLabTestsTotalUSD = selectedLabTestDetails.reduce(
+    (sum, item) => sum + (Number(item.price) || 0),
+    0,
+  );
+
+  const selectedLabPackagePriceUSD = (() => {
+    if (activeTab !== 'lab' || labSelectionType !== 'package') return 0;
+    const pkg = dbPackages.find(p => p.title === selectedLabItems[0]);
+    return Number(pkg?.price) || 0;
+  })();
+
+  const selectedBookingPriceUSD = (() => {
+    if (activeTab === 'lab' && labSelectionType === 'single') return selectedLabTestsTotalUSD;
+    if (activeTab === 'lab' && labSelectionType === 'package') return selectedLabPackagePriceUSD;
+    return Number(selectedItemPriceUSD) || 0;
+  })();
+
   // Derived YER price — shown in badge and forwarded to Checkout
   const priceYER = (() => {
     const rate = siteSettings?.usd_to_yer_rate ?? 0;
     if (!rate) return 0;
-    // Multi-test tab: sum prices of ALL selected individual tests dynamically
-    if (activeTab === 'lab' && labSelectionType === 'single') {
-      const totalUSD = selectedLabItems.reduce((sum, name) => {
-        const item = primaryOptions.find(o => o.name === name);
-        return sum + (Number(item?.price) || 0);
-      }, 0);
-      return totalUSD > 0 ? Math.round(totalUSD * rate) : 0;
-    }
-    // Package tab: single-selection — direct lookup of the one selected package
-    if (activeTab === 'lab' && labSelectionType === 'package') {
-      const pkg = dbPackages.find(p => p.title === selectedLabItems[0]);
-      const priceUSD = Number(pkg?.price) || 0;
-      return priceUSD > 0 ? Math.round(priceUSD * rate) : 0;
-    }
-    // Doctors / Scans / Clinics — single scalar state
-    return selectedItemPriceUSD > 0 ? Math.round(selectedItemPriceUSD * rate) : 0;
+    return selectedBookingPriceUSD > 0 ? Math.round(selectedBookingPriceUSD * rate) : 0;
   })();
 
   // ── Main booking handler ───────────────────────────────────────────────────
@@ -444,7 +456,7 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
       slotEnd:          activeSlot?.end_time ?? null,
       isPackage:     labSelectionType === 'package',
       patientUserId: user?.id ?? null,
-      priceUSD:      selectedItemPriceUSD,
+      priceUSD:      selectedBookingPriceUSD,
       priceYER,
     };
 
@@ -566,7 +578,7 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
                     {labCatLoading ? 'جارٍ التحميل...' : !selectedLabCategory ? 'اختر الفئة أولاً...' : 'أضف فحصاً...'}
                   </option>
                   {!labCatLoading && testsForLabCategory.map(t => (
-                    <option key={t.id} value={t.name}>{t.name}</option>
+                    <option key={t.id} value={t.id}>{t.name}</option>
                   ))}
                 </select>
                 <ChevronDown className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
@@ -744,7 +756,12 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
                     </span>
                   ))}
                   <button
-                    onClick={() => { setSelectedLabItems([]); setLabSelectionType(null); setSelectedItemPriceUSD(0); }}
+                    onClick={() => {
+                      setSelectedLabItems([]);
+                      setSelectedLabTestDetails([]);
+                      setLabSelectionType(null);
+                      setSelectedItemPriceUSD(0);
+                    }}
                     className="text-xs text-red-500 underline mr-2"
                   >
                     مسح الكل
@@ -755,7 +772,12 @@ export default function AppointmentWidget({ preSelectedDoctor = null, onBookingR
                 <>
                   <span className="font-bold text-teal-700 text-sm py-1">{selectedLabItems[0]}</span>
                   <button
-                    onClick={() => { setSelectedLabItems([]); setLabSelectionType(null); setSelectedItemPriceUSD(0); }}
+                    onClick={() => {
+                      setSelectedLabItems([]);
+                      setSelectedLabTestDetails([]);
+                      setLabSelectionType(null);
+                      setSelectedItemPriceUSD(0);
+                    }}
                     className="text-xs text-red-500 underline mr-2"
                   >
                     مسح

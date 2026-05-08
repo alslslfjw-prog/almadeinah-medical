@@ -50,6 +50,7 @@ import UsersAdmin from './pages/dashboards/admin/UsersAdmin';
 // ── Patient Dashboard Pages ─────────────────────────────────────────────────
 import PatientOverview from './pages/dashboards/patient/PatientOverview';
 import PatientAppointments from './pages/dashboards/patient/PatientAppointments';
+import PatientPayments from './pages/dashboards/patient/PatientPayments';
 import PatientProfile from './pages/dashboards/patient/PatientProfile';
 
 /**
@@ -148,6 +149,7 @@ function App() {
         >
           <Route index element={<PatientOverview />} />
           <Route path="appointments" element={<PatientAppointments />} />
+          <Route path="payments" element={<PatientPayments />} />
           <Route path="profile"      element={<PatientProfile />} />
         </Route>
 

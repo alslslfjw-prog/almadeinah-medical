@@ -5,10 +5,12 @@ import {
     ArrowRight, CheckCircle, Star, Calendar, ChevronDown, AlertCircle
 } from 'lucide-react';
 import { useClinicById } from '../hooks/useClinics';
+import { useSiteSettings } from '../hooks/useSiteSettings';
 
 export default function ClinicDetails() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const siteSettings = useSiteSettings();
 
     // ✅ Replaced 3 inline Supabase queries with a single useClinicById hook call
     const { clinic, isLoading: loading } = useClinicById(id);
@@ -44,6 +46,9 @@ export default function ClinicDetails() {
         if (!bookingForm.date) { alert('يرجى اختيار التاريخ'); return; }
         if (!bookingForm.shift) { alert('يرجى اختيار فترة الدوام'); return; }
 
+        const priceUSD = Number(selectedDoctor?.price) || 0;
+        const rate = Number(siteSettings?.usd_to_yer_rate) || 0;
+
         navigate('/checkout', {
             state: {
                 type: 'clinics',
@@ -51,6 +56,8 @@ export default function ClinicDetails() {
                 doctor: selectedDoctor,
                 date: bookingForm.date,
                 time: bookingForm.shift,
+                priceUSD,
+                priceYER: rate && priceUSD ? Math.round(priceUSD * rate) : 0,
                 isPackage: false
             }
         });

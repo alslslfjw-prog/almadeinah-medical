@@ -25,7 +25,7 @@ import {
 } from '../../../api/payments';
 
 // ── Seeded providers that cannot be deleted ───────────────────────────────────
-const PROTECTED_PROVIDERS = ['cash', 'bank_transfer'];
+const PROTECTED_PROVIDERS = ['cash', 'alqutabi_bank'];
 
 // ── Blank form state ──────────────────────────────────────────────────────────
 const BLANK = {

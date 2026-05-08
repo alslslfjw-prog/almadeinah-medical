@@ -39,6 +39,15 @@ const STATUS_STYLES = {
     cancelled: { bg: 'bg-red-100', text: 'text-red-600', label: 'ملغى' },
 };
 
+const PAYMENT_STATUS_STYLES = {
+    manual_pending: { bg: 'bg-slate-100', text: 'text-slate-600', label: 'دفع عند الحضور' },
+    otp_pending: { bg: 'bg-amber-100', text: 'text-amber-700', label: 'بانتظار OTP' },
+    paid: { bg: 'bg-emerald-100', text: 'text-emerald-700', label: 'مدفوع' },
+    failed: { bg: 'bg-red-100', text: 'text-red-600', label: 'فشل الدفع' },
+    expired: { bg: 'bg-red-100', text: 'text-red-600', label: 'انتهت المهلة' },
+    cancelled: { bg: 'bg-slate-100', text: 'text-slate-500', label: 'ملغي' },
+};
+
 const TYPE_LABELS = {
     doctors: 'أطباء',
     clinics: 'عيادات',
@@ -82,6 +91,16 @@ function StatusBadge({ status }) {
     const s = STATUS_STYLES[status] ?? { bg: 'bg-slate-100', text: 'text-slate-500', label: status };
     return (
         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${s.bg} ${s.text}`}>
+            {s.label}
+        </span>
+    );
+}
+
+function PaymentStatusBadge({ status }) {
+    if (!status) return null;
+    const s = PAYMENT_STATUS_STYLES[status] ?? { bg: 'bg-slate-100', text: 'text-slate-500', label: status };
+    return (
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${s.bg} ${s.text}`}>
             {s.label}
         </span>
     );
@@ -365,7 +384,10 @@ export default function AppointmentsAdmin() {
 
                                         {/* Status */}
                                         <td className="px-5 py-4 text-center">
-                                            <StatusBadge status={appt.status} />
+                                            <div className="flex flex-col items-center gap-1">
+                                                <StatusBadge status={appt.status} />
+                                                <PaymentStatusBadge status={appt.payment_status} />
+                                            </div>
                                         </td>
 
                                         {/* Actions */}

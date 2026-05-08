@@ -60,6 +60,9 @@ export default function DoctorDetails() {
         if (!time) { setError('يرجى اختيار الوقت'); return; }
         if (!selectedDoctorSlot) { setError('يرجى اختيار موعد متاح'); return; }
 
+        const priceUSD = Number(doctor?.price) || 0;
+        const rate = Number(siteSettings?.usd_to_yer_rate) || 0;
+
         navigate('/checkout', {
             state: {
                 type: 'doctors',
@@ -70,6 +73,8 @@ export default function DoctorDetails() {
                 doctorTimeSlotId: selectedDoctorSlot.id,
                 slotStart: selectedDoctorSlot.start_time,
                 slotEnd: selectedDoctorSlot.end_time,
+                priceUSD,
+                priceYER: rate && priceUSD ? Math.round(priceUSD * rate) : 0,
                 isPackage: false,
             },
         });
