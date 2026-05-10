@@ -17,6 +17,9 @@ import useUiStore from '../store/uiStore';
 
 function mapAppointmentError(err) {
     const message = err?.message ?? String(err ?? '');
+    if (message.includes('appointments_one_active_manual_pending_per_patient_idx')) {
+        return 'لديك حجز بانتظار الدفع في المركز. يرجى تأكيده أو إلغاؤه قبل إنشاء حجز جديد.';
+    }
     if (
         message.includes('Selected time slot is already booked') ||
         message.includes('Selected scan time slot is already booked') ||

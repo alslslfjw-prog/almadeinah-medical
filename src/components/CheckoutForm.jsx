@@ -20,10 +20,29 @@ import useAuthStore from '../store/authStore';
 import { getPaymentMethods } from '../api/payments';
 
 const ALQUTABI_PROVIDER_ID = 'alqutabi_bank';
+const MORNING_MANUAL_PAYMENT_WARNING = 'تنبيه: يجب الحضور للمركز في نفس يوم الموعد الساعة 8:00 صباحاً لتأكيد حجزك ودفع الرسوم. سيتم إلغاء الحجز تلقائياً في حال عدم تأكيد الدفع من قبل الاستقبال.';
+const EVENING_MANUAL_PAYMENT_WARNING = 'تنبيه: يجب الحضور للمركز في نفس يوم الموعد الساعة 4:00 عصراً لتأكيد حجزك ودفع الرسوم. سيتم إلغاء الحجز تلقائياً في حال عدم تأكيد الدفع من قبل الاستقبال.';
 
 function makeIdempotencyKey() {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
     return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function getAppointmentStartMinutes(bookingData) {
+    const raw = String(bookingData?.slotStart || bookingData?.time || '').trim();
+    const start = raw.split(/\s*-\s*/)[0]?.trim() || raw;
+    const match = start.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*([AP]M|[ap]m|ص|م)?/);
+    if (!match) return null;
+
+    let hours = Number(match[1]);
+    const minutes = Number(match[2]);
+    const marker = match[3]?.toLowerCase();
+
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+    if ((marker === 'pm' || marker === 'م') && hours < 12) hours += 12;
+    if ((marker === 'am' || marker === 'ص') && hours === 12) hours = 0;
+
+    return hours * 60 + minutes;
 }
 
 export default function CheckoutForm({ bookingData = {}, prefill = {}, onSuccess, compact = false }) {
@@ -85,6 +104,10 @@ export default function CheckoutForm({ bookingData = {}, prefill = {}, onSuccess
     const isUnsupportedApi = selectedMethod?.type === 'api' && !isAlqutabi;
     const otpStep = paymentStatus === 'otp_required' || paymentStatus === 'confirming';
     const busy = loading || paymentStatus === 'initiating' || paymentStatus === 'confirming';
+    const appointmentStartMinutes = useMemo(() => getAppointmentStartMinutes(bookingData), [bookingData]);
+    const manualPaymentWarning = appointmentStartMinutes !== null && appointmentStartMinutes >= 12 * 60
+        ? EVENING_MANUAL_PAYMENT_WARNING
+        : MORNING_MANUAL_PAYMENT_WARNING;
 
     const set = key => e => setFormData(p => ({ ...p, [key]: e.target.value }));
     const setBank = key => e => {
@@ -291,12 +314,18 @@ export default function CheckoutForm({ bookingData = {}, prefill = {}, onSuccess
     const manualDetailsJSX = (() => {
         if (!selectedMethod || selectedMethod.type !== 'manual') return null;
         const c = selectedMethod.config ?? {};
-        if (!c.instructions_ar && !c.account_number && !c.bank_name) return null;
         return (
-            <div className="p-3 bg-blue-50 text-blue-800 text-sm rounded-lg border border-blue-100 space-y-1">
-                {c.instructions_ar && <p>{c.instructions_ar}</p>}
-                {c.bank_name && <p>البنك: <strong>{c.bank_name}</strong></p>}
-                {c.account_number && <p>رقم الحساب: <strong>{c.account_number}</strong></p>}
+            <div className="space-y-2">
+                <div className="p-3 bg-amber-50 text-amber-900 text-sm rounded-lg border border-amber-100 font-semibold leading-7">
+                    {manualPaymentWarning}
+                </div>
+                {(c.instructions_ar || c.account_number || c.bank_name) && (
+                    <div className="p-3 bg-blue-50 text-blue-800 text-sm rounded-lg border border-blue-100 space-y-1">
+                        {c.instructions_ar && <p>{c.instructions_ar}</p>}
+                        {c.bank_name && <p>البنك: <strong>{c.bank_name}</strong></p>}
+                        {c.account_number && <p>رقم الحساب: <strong>{c.account_number}</strong></p>}
+                    </div>
+                )}
             </div>
         );
     })();

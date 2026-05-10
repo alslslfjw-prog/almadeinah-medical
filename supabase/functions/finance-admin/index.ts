@@ -424,52 +424,41 @@ async function recordRefund(body: JsonRecord, actor: { id: string | null; role: 
 }
 
 async function expireStalePayments(actor: { id: string | null; role: string }, supabaseAdmin: ReturnType<typeof createClient>) {
-  const now = new Date().toISOString();
-  const { data: rows, error } = await supabaseAdmin
-    .from('payment_transactions')
-    .select('*, appointments(id, status)')
-    .eq('status', 'otp_sent')
-    .lt('expires_at', now)
-    .limit(100);
-  if (error) throw new FinanceError('Could not load stale payments.', 500, 'expire_lookup_failed');
+  void actor;
+  const { data, error } = await supabaseAdmin
+    .rpc('expire_stale_otp_payments', { p_batch_size: 100 });
+  if (error) throw new FinanceError('Could not expire stale OTP payments.', 500, 'expire_rpc_failed');
 
-  let expiredCount = 0;
-  for (const tx of rows ?? []) {
-    await supabaseAdmin
-      .from('payment_transactions')
-      .update({
-        status: 'expired',
-        last_error_code: 'expired',
-        last_error_message: 'OTP window expired',
-      })
-      .eq('id', tx.id);
+  const row = Array.isArray(data) ? (data[0] ?? {}) : (data ?? {});
+  return {
+    expiredCount: toNumber(row.expired_count),
+    cancelledAppointments: toNumber(row.cancelled_appointments),
+    refreshedDoctorSlots: toNumber(row.refreshed_doctor_slots),
+    refreshedScanSlots: toNumber(row.refreshed_scan_slots),
+  };
+}
 
-    if (tx.appointment_id) {
-      await supabaseAdmin
-        .from('appointments')
-        .update({
-          status: 'cancelled',
-          payment_status: 'expired',
-        })
-        .eq('id', tx.appointment_id);
-    }
-
-    await logPaymentEvent(supabaseAdmin, {
-      transactionId: tx.id,
-      appointmentId: tx.appointment_id,
-      patientUserId: tx.patient_user_id,
-      actorUserId: actor.id,
-      actorRole: actor.role,
-      eventType: 'payment_expired',
-      eventSource: actor.role === 'system' ? 'cron' : 'admin',
-      statusFrom: 'otp_sent',
-      statusTo: 'expired',
-      amountYer: toNumber(tx.amount_yer),
-    });
-    expiredCount += 1;
+async function cancelManualPendingShift(
+  body: JsonRecord,
+  actor: { id: string | null; role: string },
+  supabaseAdmin: ReturnType<typeof createClient>,
+) {
+  void actor;
+  const shift = getString(body.shift);
+  if (!['morning', 'evening'].includes(shift)) {
+    throw new FinanceError('shift must be morning or evening.', 400, 'invalid_shift');
   }
 
-  return { expiredCount };
+  const { data, error } = await supabaseAdmin
+    .rpc('cancel_manual_pending_shift', { p_shift: shift });
+  if (error) throw new FinanceError('Could not cancel manual pending appointments.', 500, 'manual_pending_cancel_failed');
+
+  const row = Array.isArray(data) ? (data[0] ?? {}) : (data ?? {});
+  return {
+    cancelledCount: toNumber(row.cancelled_count),
+    refreshedDoctorSlots: toNumber(row.refreshed_doctor_slots),
+    refreshedScanSlots: toNumber(row.refreshed_scan_slots),
+  };
 }
 
 Deno.serve(async (req: Request) => {
@@ -489,6 +478,9 @@ Deno.serve(async (req: Request) => {
 
     if (action === 'expire_stale') {
       return jsonResponse({ success: true, data: await expireStalePayments(actor, supabaseAdmin) });
+    }
+    if (action === 'cancel_manual_pending_shift') {
+      return jsonResponse({ success: true, data: await cancelManualPendingShift(body, actor, supabaseAdmin) });
     }
     if (action === 'mark_manual_paid') {
       return jsonResponse({ success: true, data: await markManualPaid(body, actor, supabaseAdmin) });
