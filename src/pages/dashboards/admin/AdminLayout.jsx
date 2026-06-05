@@ -15,7 +15,7 @@ import {
     BookOpen, Users, Stethoscope, CreditCard,
     ChevronRight, ChevronLeft, Menu, X, LogOut,
     Newspaper, FlaskConical, Package, Building2, Star,
-    ShieldCheck, Settings, ScanLine
+    ShieldCheck, Settings, ScanLine, GraduationCap
 } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
 import useAuthStore from '../../../store/authStore';
@@ -78,6 +78,12 @@ const NAV_ITEMS = [
         label: 'الإعدادات العامة',
         icon: Settings,
         to: '/dashboard/admin/settings',
+    },
+    {
+        key: 'training',
+        label: 'التدريب والتأهيل',
+        icon: GraduationCap,
+        to: '/dashboard/admin/training',
     },
 ];
 

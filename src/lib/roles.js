@@ -35,7 +35,7 @@ export const isStaff = (role) => STAFF_ROLES.includes(role);
  */
 export const ROLE_NAV_ACCESS = {
     admin:        null,   // null = unrestricted (sees everything)
-    receptionist: ['overview', 'appointments', 'cms_clinics', 'cms_labs', 'cms_packages', 'cms_scans', 'doctors'],
-    accountant:   ['overview', 'appointments', 'finance', 'cms_clinics', 'cms_labs', 'cms_packages', 'cms_scans', 'doctors', 'gateways'],
-    editor:       ['overview', 'cms_blog', 'cms_clinics', 'cms_labs', 'cms_packages', 'cms_scans', 'doctors'],
+    receptionist: ['overview', 'appointments', 'cms_clinics', 'cms_labs', 'cms_packages', 'cms_scans', 'doctors', 'training'],
+    accountant:   ['overview', 'appointments', 'finance', 'cms_clinics', 'cms_labs', 'cms_packages', 'cms_scans', 'doctors', 'gateways', 'training'],
+    editor:       ['overview', 'cms_blog', 'cms_clinics', 'cms_labs', 'cms_packages', 'cms_scans', 'doctors', 'training'],
 };

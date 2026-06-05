@@ -22,6 +22,7 @@ export default function Navbar() {
     { name: 'الأشعة التشخيصية', path: '/scans' },
     { name: 'العيادات', path: '/clinics' },
     { name: 'الفحوصات', path: '/examinations' },
+    { name: 'التدريب والتأهيل', path: '/training' },
     { name: 'المدونة', path: '/blog' },
   ];
 

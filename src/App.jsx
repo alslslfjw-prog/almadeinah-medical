@@ -24,6 +24,8 @@ import Packages from './pages/Packages';
 import PackageDetails from './pages/PackageDetails';
 import Blog from './pages/Blog';
 import BlogDetails from './pages/BlogDetails';
+import Training from './pages/Training';
+import TrainingDetails from './pages/TrainingDetails';
 import Checkout from './pages/Checkout';
 
 // ── Auth Pages ──────────────────────────────────────────────────────────────
@@ -46,6 +48,9 @@ import PackagesCMS from './pages/dashboards/admin/PackagesCMS';
 import SettingsCMS from './pages/dashboards/admin/SettingsCMS';
 import FinanceDashboard from './pages/dashboards/admin/FinanceDashboard';
 import UsersAdmin from './pages/dashboards/admin/UsersAdmin';
+import TrainingAdmin from './pages/dashboards/admin/TrainingAdmin';
+import TrainingCourseEditor from './pages/dashboards/admin/TrainingCourseEditor';
+import TrainingApplicationsAdmin from './pages/dashboards/admin/TrainingApplicationsAdmin';
 
 // ── Patient Dashboard Pages ─────────────────────────────────────────────────
 import PatientOverview from './pages/dashboards/patient/PatientOverview';
@@ -174,6 +179,11 @@ function App() {
           <Route path="gateways" element={<PaymentGatewaysCMS />} />
           <Route path="settings" element={<SettingsCMS />} />
           <Route path="cms/scans" element={<ScansAdmin />} />
+          {/* ── Training & Qualifications ─────────────────────────────── */}
+          <Route path="training" element={<TrainingAdmin />} />
+          <Route path="training/new" element={<TrainingCourseEditor />} />
+          <Route path="training/:id/edit" element={<TrainingCourseEditor />} />
+          <Route path="training/:id/applications" element={<TrainingApplicationsAdmin />} />
         </Route>
 
         {/* ── Public routes (stable PublicLayout parent — NEVER remounts) ── */}
@@ -195,6 +205,8 @@ function App() {
           <Route path="/blog/:id" element={<BlogDetails />} />
           <Route path="/about" element={<About />} />
           <Route path="/checkout" element={<Checkout />} />
+          <Route path="/training" element={<Training />} />
+          <Route path="/training/:slug" element={<TrainingDetails />} />
         </Route>
 
       </Routes>
