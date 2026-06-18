@@ -173,21 +173,44 @@ async function encryptMerchantId(merchantId: string, apiKey: string) {
   return btoa(String.fromCharCode(...new Uint8Array(encrypted)));
 }
 
-function bankConfig() {
-  const baseUrl = requiredEnv('ALQUTABI_BASE_URL').replace(/\/+$/, '');
-  const appKey = requiredEnv('ALQUTABI_APP_KEY');
-  const apiKey = requiredEnv('ALQUTABI_API_KEY');
-  const merchantId = requiredEnv('ALQUTABI_MERCHANT_ID');
-  const currencyId = Number(Deno.env.get('ALQUTABI_CURRENCY_ID') ?? '1') || 1;
-  return { baseUrl, appKey, apiKey, merchantId, currencyId };
+type BankConfig = {
+  baseUrl: string;
+  appKey: string;
+  apiKey: string;
+  merchantId: string;
+  currencyId: number;
+};
+
+async function bankConfig(supabaseAdmin: ReturnType<typeof createClient>): Promise<BankConfig> {
+  const { data, error } = await supabaseAdmin.rpc('get_alqutabi_gateway_config');
+  const config = asRecord(data);
+  const baseUrl = getString(config.base_url).replace(/\/+$/, '');
+  const appKey = getString(config.app_key);
+  const apiKey = getString(config.api_key);
+  const merchantId = getString(config.merchant_id);
+
+  if (!error && baseUrl && appKey && apiKey && merchantId) {
+    return {
+      baseUrl,
+      appKey,
+      apiKey,
+      merchantId,
+      currencyId: Number(config.currency_id ?? 1) || 1,
+    };
+  }
+
+  throw new PaymentError(
+    'The live payment gateway configuration is unavailable.',
+    500,
+    'missing_gateway_secret',
+  );
 }
 
-async function encryptedCustomerNo(config: ReturnType<typeof bankConfig>) {
-  return Deno.env.get('ALQUTABI_CUSTOMER_NO_ENCRYPTED') || await encryptMerchantId(config.merchantId, config.apiKey);
+async function encryptedCustomerNo(config: BankConfig) {
+  return encryptMerchantId(config.merchantId, config.apiKey);
 }
 
-async function bankRequest(endpoint: string, body: JsonRecord) {
-  const config = bankConfig();
+async function bankRequest(endpoint: string, body: JsonRecord, config: BankConfig) {
   const response = await fetch(`${config.baseUrl}/E_Payment/${endpoint}`, {
     method: 'POST',
     headers: {
@@ -645,7 +668,7 @@ async function initiatePayment(reqBody: JsonRecord, userId: string, supabaseAdmi
     throw new PaymentError('Too many payment attempts. Please try again shortly.', 429, 'rate_limited');
   }
 
-  const config = bankConfig();
+  const config = await bankConfig(supabaseAdmin);
   const pricing = await derivePricing(supabaseAdmin, booking);
   const expiresAt = addMinutes(new Date(), OTP_EXPIRY_MINUTES).toISOString();
   const maskedAccount = maskAccount(customerAccountNumber);
@@ -731,7 +754,7 @@ async function initiatePayment(reqBody: JsonRecord, userId: string, supabaseAdmi
     payment_Curr: config.currencyId,
   };
 
-  const gatewayPayload = await bankRequest('RequestPayment', bankPayload);
+  const gatewayPayload = await bankRequest('RequestPayment', bankPayload, config);
   const safeResponse = safeGatewayResponse(gatewayPayload);
 
   if (!gatewaySuccess(gatewayPayload)) {
@@ -838,7 +861,7 @@ async function confirmPayment(reqBody: JsonRecord, userId: string, supabaseAdmin
     throw new PaymentError('Account number does not match this payment session.', 400, 'account_mismatch');
   }
 
-  const config = bankConfig();
+  const config = await bankConfig(supabaseAdmin);
   const customerNo = await encryptedCustomerNo(config);
   const gatewayPayload = await bankRequest('ConfirmPayment', {
     customer_no: customerNo,
@@ -848,7 +871,7 @@ async function confirmPayment(reqBody: JsonRecord, userId: string, supabaseAdmin
     payment_Amount: transaction.amount_yer,
     payment_Curr: transaction.currency_id,
     Payment_OTP: otp,
-  });
+  }, config);
   const safeResponse = safeGatewayResponse(gatewayPayload);
   const nextAttempts = Number(transaction.attempts_count ?? 0) + 1;
 
@@ -964,7 +987,7 @@ async function resendOtp(reqBody: JsonRecord, userId: string, supabaseAdmin: Ret
     throw new PaymentError('Too many OTP resend attempts.', 429, 'too_many_resends');
   }
 
-  const config = bankConfig();
+  const config = await bankConfig(supabaseAdmin);
   const customerNo = await encryptedCustomerNo(config);
   const gatewayPayload = await bankRequest('ResendOTP', {
     customer_no: customerNo,
@@ -974,7 +997,7 @@ async function resendOtp(reqBody: JsonRecord, userId: string, supabaseAdmin: Ret
     payment_Amount: transaction.amount_yer,
     payment_Curr: transaction.currency_id,
     Payment_OTP: previousOtp,
-  });
+  }, config);
   const safeResponse = safeGatewayResponse(gatewayPayload);
   const nextResends = Number(transaction.resend_count ?? 0) + 1;
 
