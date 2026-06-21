@@ -40,11 +40,13 @@ type PricingSummary = {
 class PaymentError extends Error {
   status: number;
   code: string;
+  details?: JsonRecord;
 
-  constructor(message: string, status = 400, code = 'payment_error') {
+  constructor(message: string, status = 400, code = 'payment_error', details?: JsonRecord) {
     super(message);
     this.status = status;
     this.code = code;
+    this.details = details;
   }
 }
 
@@ -56,7 +58,7 @@ function jsonResponse(body: JsonRecord, status = 200) {
 }
 
 function requiredEnv(name: string) {
-  const value = Deno.env.get(name);
+  const value = Deno.env.get(name)?.trim();
   if (!value) {
     throw new PaymentError('Payment gateway is not configured.', 500, 'missing_gateway_secret');
   }
@@ -156,6 +158,19 @@ function gatewayErrorMessage(payload: JsonRecord | null | undefined) {
   );
 }
 
+function safeErrorDetails(error: unknown): JsonRecord {
+  if (error instanceof Error) {
+    return {
+      error_name: error.name,
+      error_message: error.message.slice(0, 240),
+    };
+  }
+  return {
+    error_name: 'UnknownError',
+    error_message: String(error).slice(0, 240),
+  };
+}
+
 async function encryptMerchantId(merchantId: string, apiKey: string) {
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
@@ -181,45 +196,52 @@ type BankConfig = {
   currencyId: number;
 };
 
-async function bankConfig(supabaseAdmin: ReturnType<typeof createClient>): Promise<BankConfig> {
-  const { data, error } = await supabaseAdmin.rpc('get_alqutabi_gateway_config');
-  const config = asRecord(data);
-  const baseUrl = getString(config.base_url).replace(/\/+$/, '');
-  const appKey = getString(config.app_key);
-  const apiKey = getString(config.api_key);
-  const merchantId = getString(config.merchant_id);
-
-  if (!error && baseUrl && appKey && apiKey && merchantId) {
-    return {
-      baseUrl,
-      appKey,
-      apiKey,
-      merchantId,
-      currencyId: Number(config.currency_id ?? 1) || 1,
-    };
-  }
-
-  throw new PaymentError(
-    'The live payment gateway configuration is unavailable.',
-    500,
-    'missing_gateway_secret',
-  );
+async function bankConfig(): Promise<BankConfig> {
+  return {
+    baseUrl: requiredEnv('ALQUTABI_BASE_URL').replace(/\/+$/, ''),
+    appKey: requiredEnv('ALQUTABI_APP_KEY'),
+    apiKey: requiredEnv('ALQUTABI_API_KEY'),
+    merchantId: requiredEnv('ALQUTABI_MERCHANT_ID'),
+    currencyId: 1,
+  };
 }
 
 async function encryptedCustomerNo(config: BankConfig) {
-  return encryptMerchantId(config.merchantId, config.apiKey);
+  try {
+    return await encryptMerchantId(config.merchantId, config.apiKey);
+  } catch (error) {
+    throw new PaymentError(
+      'تعذر تهيئة بيانات بوابة الدفع. يرجى المحاولة لاحقاً أو اختيار الدفع في المركز.',
+      500,
+      'gateway_encryption_failed',
+      safeErrorDetails(error),
+    );
+  }
 }
 
 async function bankRequest(endpoint: string, body: JsonRecord, config: BankConfig) {
-  const response = await fetch(`${config.baseUrl}/E_Payment/${endpoint}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-API-KEY': config.apiKey,
-      'X-APP-KEY': config.appKey,
-    },
-    body: JSON.stringify(body),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${config.baseUrl}/E_Payment/${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-KEY': config.apiKey,
+        'X-APP-KEY': config.appKey,
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (error) {
+    throw new PaymentError(
+      'تعذر الاتصال ببنك القطيبي حالياً. يرجى المحاولة لاحقاً أو اختيار الدفع في المركز.',
+      502,
+      'bank_network_error',
+      {
+        endpoint,
+        ...safeErrorDetails(error),
+      },
+    );
+  }
 
   const text = await response.text();
   let payload: JsonRecord = {};
@@ -230,7 +252,11 @@ async function bankRequest(endpoint: string, body: JsonRecord, config: BankConfi
   }
 
   if (!response.ok) {
-    throw new PaymentError(gatewayErrorMessage(payload), response.status, 'bank_http_error');
+    throw new PaymentError(gatewayErrorMessage(payload), response.status, 'bank_http_error', {
+      endpoint,
+      http_status: response.status,
+      gateway_response: safeGatewayResponse(payload),
+    });
   }
 
   return payload;
@@ -645,6 +671,128 @@ async function expireTransaction(supabaseAdmin: ReturnType<typeof createClient>,
   });
 }
 
+function normalizePaymentError(error: unknown) {
+  if (error instanceof PaymentError) return error;
+  return new PaymentError(
+    'تعذر معالجة الدفع حالياً. يرجى المحاولة لاحقاً أو اختيار الدفع في المركز.',
+    500,
+    'unexpected_payment_error',
+    safeErrorDetails(error),
+  );
+}
+
+async function refreshLinkedSlotStatus(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  appointment: JsonRecord,
+) {
+  const activeStatuses = ['pending', 'confirmed', 'completed'];
+  const doctorSlotId = normalizeSlotId(appointment.doctor_time_slot_id);
+  const scanSlotId = normalizeSlotId(appointment.scan_time_slot_id);
+
+  if (doctorSlotId) {
+    const { data: slot } = await supabaseAdmin
+      .from('doctor_time_slots')
+      .select('is_blocked')
+      .eq('id', doctorSlotId)
+      .maybeSingle();
+    const { count } = await supabaseAdmin
+      .from('appointments')
+      .select('id', { count: 'exact', head: true })
+      .eq('doctor_time_slot_id', doctorSlotId)
+      .in('status', activeStatuses);
+
+    await supabaseAdmin
+      .from('doctor_time_slots')
+      .update({
+        status: slot?.is_blocked ? 'blocked' : (count ?? 0) > 0 ? 'booked' : 'available',
+      })
+      .eq('id', doctorSlotId);
+  }
+
+  if (scanSlotId) {
+    const { data: slot } = await supabaseAdmin
+      .from('scan_time_slots')
+      .select('is_blocked')
+      .eq('id', scanSlotId)
+      .maybeSingle();
+    const { count } = await supabaseAdmin
+      .from('appointments')
+      .select('id', { count: 'exact', head: true })
+      .eq('scan_time_slot_id', scanSlotId)
+      .in('status', activeStatuses);
+
+    await supabaseAdmin
+      .from('scan_time_slots')
+      .update({
+        status: slot?.is_blocked ? 'blocked' : (count ?? 0) > 0 ? 'booked' : 'available',
+      })
+      .eq('id', scanSlotId);
+  }
+}
+
+async function rollbackInitiateAfterAppointment(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  payload: {
+    transaction: JsonRecord;
+    appointment: JsonRecord;
+    patientUserId: string;
+    amountYer: number;
+    error: unknown;
+  },
+): Promise<never> {
+  const err = normalizePaymentError(payload.error);
+  const details = asRecord(err.details);
+  const gatewayResponse = asRecord(details.gateway_response);
+  const metadata = Object.fromEntries(
+    Object.entries(details).filter(([key]) => key !== 'gateway_response'),
+  );
+
+  console.error('alqutabi-payment initiate rollback', {
+    transaction_id: payload.transaction.id,
+    appointment_id: payload.appointment.id,
+    error_code: err.code,
+    ...metadata,
+  });
+
+  await supabaseAdmin
+    .from('payment_transactions')
+    .update({
+      status: 'failed',
+      last_error_code: err.code,
+      last_error_message: err.message,
+      gateway_response: gatewayResponse,
+    })
+    .eq('id', payload.transaction.id);
+
+  await supabaseAdmin
+    .from('appointments')
+    .update({
+      status: 'cancelled',
+      payment_status: 'failed',
+    })
+    .eq('id', payload.appointment.id);
+
+  await refreshLinkedSlotStatus(supabaseAdmin, payload.appointment);
+
+  await logPaymentEvent(supabaseAdmin, {
+    transactionId: payload.transaction.id,
+    appointmentId: payload.appointment.id,
+    patientUserId: payload.patientUserId,
+    eventType: err.code,
+    eventSource: err.code.startsWith('bank') ? 'bank' : 'system',
+    statusFrom: 'initiated',
+    statusTo: 'failed',
+    amountYer: payload.amountYer,
+    metadata: {
+      error_code: err.code,
+      error_message: err.message,
+      ...metadata,
+    },
+  });
+
+  throw err;
+}
+
 async function initiatePayment(reqBody: JsonRecord, userId: string, supabaseAdmin: ReturnType<typeof createClient>) {
   const booking = (reqBody.bookingData ?? reqBody.booking) as JsonRecord | undefined;
   const patient = (reqBody.patient ?? {}) as JsonRecord;
@@ -668,7 +816,7 @@ async function initiatePayment(reqBody: JsonRecord, userId: string, supabaseAdmi
     throw new PaymentError('Too many payment attempts. Please try again shortly.', 429, 'rate_limited');
   }
 
-  const config = await bankConfig(supabaseAdmin);
+  const config = await bankConfig();
   const pricing = await derivePricing(supabaseAdmin, booking);
   const expiresAt = addMinutes(new Date(), OTP_EXPIRY_MINUTES).toISOString();
   const maskedAccount = maskAccount(customerAccountNumber);
@@ -744,17 +892,29 @@ async function initiatePayment(reqBody: JsonRecord, userId: string, supabaseAdmi
     .eq('id', transaction.id);
   await insertLineItems(supabaseAdmin, transaction.id, appointment.id, userId, pricing);
 
-  const customerNo = await encryptedCustomerNo(config);
-  const bankPayload = {
-    customer_no: customerNo,
-    payment_DestNation: config.merchantId,
-    payment_CustomerNo: customerAccountNumber,
-    payment_Code: paymentCode,
-    payment_Amount: pricing.amountYer,
-    payment_Curr: config.currencyId,
-  };
+  let gatewayPayload: JsonRecord;
+  try {
+    const customerNo = await encryptedCustomerNo(config);
+    const bankPayload = {
+      customer_no: customerNo,
+      payment_DestNation: config.merchantId,
+      payment_CustomerNo: customerAccountNumber,
+      payment_Code: paymentCode,
+      payment_Amount: pricing.amountYer,
+      payment_Curr: config.currencyId,
+    };
 
-  const gatewayPayload = await bankRequest('RequestPayment', bankPayload, config);
+    gatewayPayload = await bankRequest('RequestPayment', bankPayload, config);
+  } catch (error) {
+    await rollbackInitiateAfterAppointment(supabaseAdmin, {
+      transaction,
+      appointment,
+      patientUserId: userId,
+      amountYer: pricing.amountYer,
+      error,
+    });
+  }
+
   const safeResponse = safeGatewayResponse(gatewayPayload);
 
   if (!gatewaySuccess(gatewayPayload)) {
@@ -775,6 +935,8 @@ async function initiatePayment(reqBody: JsonRecord, userId: string, supabaseAdmi
         payment_status: 'failed',
       })
       .eq('id', appointment.id);
+
+    await refreshLinkedSlotStatus(supabaseAdmin, appointment);
 
     await logPaymentEvent(supabaseAdmin, {
       transactionId: transaction.id,
@@ -861,7 +1023,7 @@ async function confirmPayment(reqBody: JsonRecord, userId: string, supabaseAdmin
     throw new PaymentError('Account number does not match this payment session.', 400, 'account_mismatch');
   }
 
-  const config = await bankConfig(supabaseAdmin);
+  const config = await bankConfig();
   const customerNo = await encryptedCustomerNo(config);
   const gatewayPayload = await bankRequest('ConfirmPayment', {
     customer_no: customerNo,
@@ -987,7 +1149,7 @@ async function resendOtp(reqBody: JsonRecord, userId: string, supabaseAdmin: Ret
     throw new PaymentError('Too many OTP resend attempts.', 429, 'too_many_resends');
   }
 
-  const config = await bankConfig(supabaseAdmin);
+  const config = await bankConfig();
   const customerNo = await encryptedCustomerNo(config);
   const gatewayPayload = await bankRequest('ResendOTP', {
     customer_no: customerNo,
@@ -1080,9 +1242,18 @@ Deno.serve(async (req: Request) => {
 
     throw new PaymentError('Unknown payment action.', 400, 'unknown_action');
   } catch (error) {
+    if (!(error instanceof PaymentError)) {
+      console.error('alqutabi-payment unexpected error', safeErrorDetails(error));
+    }
+
     const err = error instanceof PaymentError
       ? error
-      : new PaymentError('Unexpected payment processing error.', 500, 'unexpected_error');
+      : new PaymentError(
+        'تعذر معالجة الدفع حالياً. يرجى المحاولة لاحقاً أو اختيار الدفع في المركز.',
+        500,
+        'unexpected_error',
+        safeErrorDetails(error),
+      );
 
     return jsonResponse({
       success: false,
