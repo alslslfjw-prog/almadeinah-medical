@@ -1,20 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase'; // تأكد أن المسار صحيح
 import { Link } from 'react-router-dom';
 import { 
   Search, ArrowRight, X, Activity, Clock, 
-  AlertCircle, FileText, CheckCircle, Filter, 
+  FileText, CheckCircle, Filter,
   TestTube, HeartPulse, ShieldAlert
 } from 'lucide-react';
+import { getLabCategories, getMedicalTestsGuide } from '../api/scans';
 import { useSiteSettings } from '../hooks/useSiteSettings';
+
+const ALL_CATEGORIES = 'all';
 
 export default function AllTests() {
   const [testsData, setTestsData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTest, setSelectedTest] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeCategory, setActiveCategory] = useState('الكل');
-  const [categories, setCategories] = useState(['الكل']);
+  const [activeCategory, setActiveCategory] = useState(ALL_CATEGORIES);
+  const [categories, setCategories] = useState([]);
   const siteSettings = useSiteSettings();
 
   // جلب البيانات من Supabase عند تحميل الصفحة
@@ -22,19 +24,16 @@ export default function AllTests() {
     const fetchTests = async () => {
       try {
         setLoading(true);
-        const { data, error } = await supabase
-          .from('medical_tests_guide')
-          .select('*')
-          .order('category', { ascending: true });
+        const [testsResult, categoriesResult] = await Promise.all([
+          getMedicalTestsGuide(),
+          getLabCategories(),
+        ]);
 
-        if (error) throw error;
+        if (testsResult.error) throw testsResult.error;
+        if (categoriesResult.error) throw categoriesResult.error;
 
-        if (data) {
-          setTestsData(data);
-          // استخراج الفئات الفريدة من البيانات القادمة من قاعدة البيانات
-          const uniqueCategories = ["الكل", ...new Set(data.map(item => item.category))];
-          setCategories(uniqueCategories);
-        }
+        setTestsData(testsResult.data ?? []);
+        setCategories(categoriesResult.data ?? []);
       } catch (error) {
         console.error('Error fetching medical tests:', error.message);
       } finally {
@@ -47,8 +46,8 @@ export default function AllTests() {
 
   // تصفية البيانات (Filter Logic)
   const filteredTests = testsData.filter(test => {
-    const matchesSearch = test.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = activeCategory === 'الكل' || test.category === activeCategory;
+    const matchesSearch = (test.name ?? '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = activeCategory === ALL_CATEGORIES || test.category_id === activeCategory;
     return matchesSearch && matchesCategory;
   });
 
@@ -87,17 +86,27 @@ export default function AllTests() {
         <div className="border-t border-gray-100 bg-white">
             <div className="container mx-auto px-6 py-3 overflow-x-auto scrollbar-hide">
                 <div className="flex gap-2">
-                    {categories.map(cat => (
+                    <button
+                        onClick={() => setActiveCategory(ALL_CATEGORIES)}
+                        className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition
+                            ${activeCategory === ALL_CATEGORIES
+                                ? 'bg-teal-600 text-white shadow-md'
+                                : 'bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100'}
+                        `}
+                    >
+                        الكل
+                    </button>
+                    {categories.map(category => (
                         <button
-                            key={cat}
-                            onClick={() => setActiveCategory(cat)}
+                            key={category.id}
+                            onClick={() => setActiveCategory(category.id)}
                             className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition
-                                ${activeCategory === cat 
+                                ${activeCategory === category.id
                                     ? 'bg-teal-600 text-white shadow-md' 
                                     : 'bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100'}
                             `}
                         >
-                            {cat}
+                            {category.name}
                         </button>
                     ))}
                 </div>
@@ -125,7 +134,11 @@ export default function AllTests() {
                             <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors">
                                 <TestTube size={20} />
                             </div>
-                            <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-1 rounded-md">{test.category}</span>
+                            {test.lab_categories?.name && (
+                                <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-1 rounded-md">
+                                    {test.lab_categories.name}
+                                </span>
+                            )}
                         </div>
                         
                         <h3 className="font-bold text-gray-800 text-base mb-2 group-hover:text-blue-700 transition-colors line-clamp-2">
@@ -154,7 +167,7 @@ export default function AllTests() {
                 </div>
                 <h3 className="text-xl font-bold text-gray-600">لا توجد نتائج مطابقة</h3>
                 <p className="text-gray-400 mt-2">حاول البحث بكلمة مختلفة أو تغيير التصنيف</p>
-                <button onClick={() => {setSearchTerm(''); setActiveCategory('الكل');}} className="mt-4 text-teal-600 font-bold hover:underline">
+                <button onClick={() => {setSearchTerm(''); setActiveCategory(ALL_CATEGORIES);}} className="mt-4 text-teal-600 font-bold hover:underline">
                     عرض جميع الفحوصات
                 </button>
             </div>
@@ -178,9 +191,11 @@ export default function AllTests() {
                 <div className="bg-gradient-to-r from-blue-900 to-teal-600 p-6 text-white shrink-0">
                     <div className="flex justify-between items-start">
                         <div>
-                            <span className="bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold mb-3 inline-block backdrop-blur-md border border-white/10">
-                                {selectedTest.category}
-                            </span>
+                            {selectedTest.lab_categories?.name && (
+                                <span className="bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold mb-3 inline-block backdrop-blur-md border border-white/10">
+                                    {selectedTest.lab_categories.name}
+                                </span>
+                            )}
                             <h2 className="text-xl md:text-2xl font-bold leading-tight">{selectedTest.name}</h2>
                         </div>
                         <button 
